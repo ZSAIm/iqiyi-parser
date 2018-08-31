@@ -11,6 +11,11 @@
 * __``merge.py``__: 视频合并。
 * __``/build/*``__: 已经编译好的程序。
 
+## 安装模块
+* __``Pyv8``__		: https://code.google.com/archive/p/pyv8/downloads
+* __``pyperclip``__	: pip install pyperclip
+
+
 ## 引用项目
 __``not-bad-downloader``__: https://github.com/ZSAIm/not-bad-downloader
 
