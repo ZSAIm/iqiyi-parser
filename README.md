@@ -14,6 +14,7 @@
 ## 安装模块
 * __``Pyv8``__		: https://code.google.com/archive/p/pyv8/downloads
 * __``pyperclip``__	: pip install pyperclip
+* __``BeautifulSoup``__	: pip install beautifulsoup
 
 
 ## 引用项目
