@@ -28,25 +28,25 @@ HEADERS = {
 }
 
 global_params = {
-    'tvid': '',#
-    'bid': '',#
-    'vid': '',#
+    'tvid': '',
+    'bid': '',
+    'vid': '',
     'src': '01010031010000000000',
     'vt': '0',
     'rs': '1',
     'uid': '',
     'ori': "pcw",
-    'ps': '0', #ps: o.switchvd ? 1 : 0,
-    'tm': '',#
+    'ps': '0',  # ps: o.switchvd ? 1 : 0,
+    'tm': '',
     'qd_v': "1",
-    'k_uid': '',#
+    'k_uid': '',
     'pt': '0',
     'd': '0',
     's': "",
     'lid': "",
     'cf': "",
     'ct': "",
-    'authKey': '',#
+    'authKey': '',
     'k_tag': '1',
     'ppt': '0',
     'dfp': '',
@@ -56,12 +56,10 @@ global_params = {
     'k_err_retries': '0',
     'ut': '0',
     'bop': '{"version":"7.0","dfp":""}',
-    'callback': '',#
+    'callback': '',
 }
 
-
-
-class Iqiyi(object):
+class Iqiyi:
 
     def __init__(self):
         self.cookiejar = None
@@ -107,6 +105,7 @@ class Iqiyi(object):
         soup = BeautifulSoup(text)
         videoname = soup.title.string
         tvid = re.search('''param\['tvid'\] = "(.+?)"''', text, re.S).group(1)
+        self.tvid = tvid
         vid = re.search('''param\['vid'\] = "(.+?)"''', text, re.I | re.S).group(1)
         uid = self.make_random_id()
 
@@ -114,18 +113,20 @@ class Iqiyi(object):
 
         for bid in bids:
             json_msg = self.__parse(tvid, vid, uid, bid)
+            if not json_msg:
+                continue
             msg = json_msg['data']['program']['video']
 
-            scrsz = ''
+            # scrsz = ''
             sel = None
             for i in msg:
                 if 'fs' in i and i['_selected'] is True:
                     sel = i
-                    scrsz = i['scrsz']
+                    # scrsz = i['scrsz']
 
                     # for j, k in i:
                     # fs.append(i['fs'])
-            videos_msg[scrsz] = {'fs': sel['fs'], 'vsize': sel['vsize'], 'ff': sel['ff'], 'bid': sel['bid'], '@json': msg}
+            videos_msg[sel['scrsz']] = {'fs': sel['fs'], 'vsize': sel['vsize'], 'ff': sel['ff'], 'bid': sel['bid'], '@json': msg}
 
         return videoname, videos_msg
 
@@ -165,7 +166,6 @@ class Iqiyi(object):
 
             path_get += '&vf=%s' % vf
             ctx.leave()
-
 
         req = urllib2.Request('http://cache.video.iqiyi.com/' + path_get.lstrip('/'))
         res = self.opener.open(req)
