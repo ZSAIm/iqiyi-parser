@@ -8,6 +8,9 @@ import json
 import urllib, urllib2
 from BeautifulSoup import BeautifulSoup
 import PyV8
+import ssl
+
+ssl._create_default_https_context = ssl._create_unverified_context
 
 def raw_decompress(data, headers_msg):
     encoding = headers_msg.get('Content-Encoding')

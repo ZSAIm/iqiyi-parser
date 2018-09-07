@@ -5,6 +5,16 @@
 
 	这是个成品程序，可以直接使用去下载爱奇艺视频。
 
+## 注意
+__build目录下编译好的文件一定要把其目录下的两个js放到目录下。__
+
+## 更新说明
+* 添加一下代码解决由于python版本的更新出现的ssl问题。
+```Python
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+```
+	
 ## 项目包含
 * __``/dl/*.py ``__: dl目录下的是下载器。(github: https://github.com/ZSAIm/not-bad-downloader)
 * __``iqiyi-parse.py``__ : 视频解析。 ( / 目录下的两个js文件是用于解析地址的。)
