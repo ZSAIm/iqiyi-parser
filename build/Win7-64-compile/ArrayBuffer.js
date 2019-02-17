@@ -3,11 +3,9 @@ function ArrayBuffer(byte_length){  //byte unsigned int
     this.length = byte_length;
     this.begin = 0;
 
-    ////set0
     for (var i = 0; i < byte_length; i++){
         this.buffer[i] = 0;
     }
-    // console.log(this.buffer);
 
 }
 
@@ -163,10 +161,7 @@ function Int8Array(ArrayBuffer_Object){
     }
 
     function subarray(begin, end){
-        // new_object = new Int8Array(this.ArrayBuffer_Object);
-        // new_object.begin = begin;
-        // new_object.length = this.length - begin;
-        // return new_object;
+
         var end = arguments[1] ? arguments[1] : this.length;
         sublist = [];
         for (var i = 0; i < end - begin; i++){
@@ -213,11 +208,6 @@ function Uint8Array(ArrayBuffer_Object){
         // console.log(sublist);
         return sublist;
 
-
-        // new_object = new Uint8Array(this.ArrayBuffer_Object);
-        // new_object.begin = begin;
-        // new_object.length = this.length - begin;
-        // return new_object;
     }
 
     this.ArrayBuffer_Object = ArrayBuffer_Object;

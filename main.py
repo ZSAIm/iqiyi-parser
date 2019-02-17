@@ -7,27 +7,26 @@
 **
 **                                          programming by python 2.7
 **
-**                                                      8.31-2018
+**                                                      02.17-2019
 **********************************************************************
 **********************************************************************
 """
 
-from dl.downloader import downloader
+import nbdler
 import merger
 import urllib
 import time
-import ___progressbar,os, pyperclip
+from ___progressbar import progressBar
+import os, pyperclip
 import iqiyi_parse
 import ConfigParser
 import json
 
 iqiyi = iqiyi_parse.Iqiyi()
-global_bids = [100, 300, 600]
-MAX_TASK = 3
-FILE_VERIFY = True
+global_bids = [100, 200, 300, 400, 500, 600]
+MAX_TASK = 5
 SAVE_PATH = ''
-# iqiyi.parse(url, [100])
-
+DEL_AFTER = True
 
 
 
@@ -38,16 +37,15 @@ def save_config():
     config.add_section('settings')
     json.dumps(global_bids)
     config.set('settings', 'bids', json.dumps(global_bids))
-    config.set('settings', 'max_threads', str(MAX_TASK))
-    config.set('settings', 'file_verify', str(FILE_VERIFY))
+    config.set('settings', 'max_task', str(MAX_TASK))
     config.set('settings', 'save_path', str(SAVE_PATH))
-
+    config.set('settings', 'del_after', 'T' if DEL_AFTER else 'F')
     with open('config.ini', 'wb') as f:
         config.write(f)
 
 
 def load_config():
-    global global_bids, MAX_TASK, FILE_VERIFY, SAVE_PATH
+    global global_bids, MAX_TASK, SAVE_PATH, DEL_AFTER
     if os.path.exists('config.ini') is False:
         return False
 
@@ -55,14 +53,10 @@ def load_config():
 
     config.read('config.ini')
     json_raw = config.get('settings', 'bids')
-    MAX_TASK = int(config.get('settings', 'max_threads'))
-    file_verify_str = config.get('settings', 'file_verify')
-    if file_verify_str.lower() == 'false':
-        FILE_VERIFY = False
-    else:
-        FILE_VERIFY = True
+    MAX_TASK = int(config.get('settings', 'max_task'))
 
     SAVE_PATH = config.get('settings', 'save_path')
+    DEL_AFTER = True if config.get('settings', 'del_after') == 'T' else False
     global_bids = json.loads(json_raw)
 
 
@@ -120,60 +114,54 @@ def make_filenames(filename, msg):
     return names
 
 def build_dl(videoname, names_list, sel_msg):
-    dl_list = []
+    dlm = nbdler.Manager()
     for i, j in enumerate(names_list):
-        if os.path.exists(os.path.join(videoname, j)) is True:
-            continue
-        dl = downloader()
-        dl.config(file_name=j, file_path=os.path.join(SAVE_PATH, videoname), max_thread=5, verify=FILE_VERIFY)
         _url, _ = iqiyi.activate_path(sel_msg['fs'][i]['l'])
-        dl.add_url(_url)
-        try:
-            dlm = dl.open()
-            dl_list.append(dlm)
-        except Exception('FileExistsError'):
-            pass
-    return dl_list
+        filepath = os.path.join(SAVE_PATH, videoname)
 
-def dl_process(dl_list):
-    dl_tmp = dl_list[:]
-    colors = ['red', 'blue', 'yellow', 'white', 'cyan', 'black', 'green', 'magenta']
-    running_list = []
-    while True:
-        running_list = filter(lambda (x, y): x.isDone() is False, running_list)
-        if len(running_list) <= MAX_TASK:
-            cur_run_len = MAX_TASK - len(running_list)
-            for i in dl_list[:cur_run_len]:
-                isin = False
-                for j in running_list:
-                    if i in j:
-                        isin = True
-                        break
-                if isin is True:
-                    break
-                i.start()
-                sel_color = None
-                for m in colors:
-                    for j, k in running_list:
-                        if k.color == m:
-                            break
-                    else:
-                        sel_color = m
-                        break
+        if os.path.exists(os.path.join(filepath, j)) is True:
+            if os.path.exists(os.path.join(filepath, j + '.nbdler')):
+                dl = nbdler.open(fp=os.path.join(filepath, j))
+                dlm.addHandler(dl)
+            continue
 
-                if sel_color is None:
-                    sel_color = colors[0]
-                pbar = ___progressbar.progressBar(dl_tmp.index(i), i.file.size, color=sel_color)
-                running_list.append((i, pbar))
-            dl_list = dl_list[cur_run_len:]
-        for i, j in running_list:
-            left_size = i.file.size - i.getLeft()
-            j.update(left_size, '%d kb/s' % int(i.getinsSpeed() / 1024))
+        dl = nbdler.open(filename=j, filepath=filepath, max_conn=5, urls=[_url])
+        dlm.addHandler(dl)
+
+    return dlm
+
+def dl_process(dlm):
+    colors = ['red', 'blue', 'yellow', 'white', 'cyan', 'green', 'magenta']
+
+    dlm.config(max_task=MAX_TASK)
+
+    id_pbar = []
+    color_index = 0
+    for i, j in dlm.getAllTask().items():
+        if color_index == len(colors):
+            color_index = 0
+        pbar = progressBar(i, j.file.size, color=colors[color_index])
+        id_pbar.append((i, pbar))
+        color_index += 1
+    dlm.run()
+
+    while not dlm.isEnd():
+        cur_queue = dlm.getRunQueue()
+        ids, pbars = zip(*id_pbar)
+
+        for i in cur_queue:
+            dl = dlm.getHandler(i)
+            inc = dl.file.size - dl.getLeft()
+            speed = round(dl.getInsSpeed() / 1024, 1)
+            pbars[i].update(inc, '%6s kb/s' % speed)
+
+
         time.sleep(1)
 
-        if len(dl_list) == 0 and len(running_list) == 0:
-            break
-
+def del_seg_video(name_paths, filepath):
+    for i in name_paths:
+        os.remove(i)
+    os.removedirs(filepath)
 
 
 def main():
@@ -220,16 +208,18 @@ def main():
 
         if not os.path.exists(unicode(videoname)):
             os.mkdir(unicode(videoname))
-        dl_list = build_dl(videoname, names, sel_msg)
-        dl_process(dl_list)
 
-        merger_bar = ___progressbar.progressBar(0, len(names), 30)
+        dlm = build_dl(videoname, names, sel_msg)
+        dl_process(dlm)
 
-        name_path = []
+        merger_bar = progressBar(0, len(names), 30)
+
+        name_paths = []
+        filepath = unicode(os.path.join(SAVE_PATH, unicode(videoname)))
         for i in names:
-            name_path.append(os.path.join(unicode(videoname), i))
+            name_paths.append(os.path.join(filepath, i))
 
-        mer = merger.merger(unicode(videoname) + u'.f4v', name_path)
+        mer = merger.merger(os.path.join(SAVE_PATH, unicode(videoname)) + u'.f4v', name_paths)
         mer.start()
         while True:
             merger_bar.update(mer.now)
@@ -237,7 +227,11 @@ def main():
             if mer.now == mer.sum:
                 merger_bar.update(mer.now)
                 break
+        if DEL_AFTER:
+            del_seg_video(name_paths, filepath)
+
         print 'OK!'
+
         while True:
             time.sleep(1)
 

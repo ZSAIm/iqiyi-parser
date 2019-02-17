@@ -54,7 +54,7 @@ global_params = {
     'ppt': '0',
     'dfp': '',
     'locale': 'zh_cn',
-    'prio': '{"ff": "f4v", "code": 2}',
+    'prio': '{"ff": "mp4", "code": 2}',
     'pck': '',
     'k_err_retries': '0',
     'ut': '0',
@@ -179,7 +179,7 @@ class Iqiyi:
             ret = json.loads(json_str)
         else:
             ret = None
-
+        res.close()
         return ret
 
     def activate_path(self, path):
@@ -202,5 +202,6 @@ class Iqiyi:
 
 if __name__ == "__main__":
     a = Iqiyi()
-    b = a.parse('http://www.iqiyi.com/a_19rrgxwtfh.html')
+    # b = a.parse('http://www.iqiyi.com/a_19rrgxwtfh.html')
+    b = a.parse('https://www.iqiyi.com/a_19rrhdfh2l.html')
     pass
