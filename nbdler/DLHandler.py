@@ -1,5 +1,5 @@
 
-# import logging
+import logging
 from DLInfos import *
 from DLProgress import *
 from packer import Packer
