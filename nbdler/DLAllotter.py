@@ -2,7 +2,6 @@
 
 import threading
 
-
 class Allotter(object):
 
     def __init__(self, Handler, GlobalProgress):
@@ -45,12 +44,7 @@ class Allotter(object):
 
         blocks[-1] = (blocks[-1][0], len(self.globalprog.getMap()))
 
-        # ranges = self.blockToRange(blocks)
-
         return blocks
-
-        # for i, j in enumerate(self.handler.url.getUrls().keys()):
-        #     self.globalprog.insert(j, *ranges[i])
 
     def assignAll(self):
         ranges = self.blockToRange(self.makeEvenBlock(self.handler.url.max_conn))
@@ -80,7 +74,7 @@ class Allotter(object):
 
         return idle_url
 
-    def assignUrl(self):
+    def assignUrlid(self):
         url_health_table = self.getUrlsHealth()
         url_thread_table = self.getUrlsThread()
 
@@ -115,7 +109,7 @@ class Allotter(object):
         return put_range
 
     def assign(self):
-        return self.assignUrl(), self.assignRange()
+        return self.assignUrlid(), self.assignRange()
 
     def getUrlsHealth(self):
         """return: [(Urlid, AvgSpeed), ...]"""
@@ -161,8 +155,11 @@ class Allotter(object):
     def blockToRange(self, block_list):
         retranges = []
         for i in block_list:
-            retranges.append((i[0] * self.handler.file.BLOCK_SIZE,
-                              i[1] * self.handler.file.BLOCK_SIZE))
+            begin = i[0] * self.handler.file.BLOCK_SIZE
+            end = i[1] * self.handler.file.BLOCK_SIZE
+            if i[1] == len(self.globalprog.getMap()) - 1:
+                end = self.handler.file.size
+            retranges.append((begin, end))
 
         if retranges and retranges[-1][1] + self.handler.file.BLOCK_SIZE > self.handler.file.size:
             retranges[-1] = (retranges[-1][0], self.handler.file.size)

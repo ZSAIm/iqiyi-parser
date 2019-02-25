@@ -1,10 +1,10 @@
 
 
-import time, os, logging
+import time, os
 import DLProcessor
 from packer import Packer
+import gc
 
-logger = logging.getLogger('nbdler')
 
 
 class TimeStatus(Packer, object):
@@ -31,7 +31,7 @@ class TimeStatus(Packer, object):
     def startGo(self):
         self.pauseflag = False
         if not self.go_startTime and not self.go_end:
-            self.go_startTime = time.clock()
+            self.go_startTime = time.time()
             self.go_pauseTime = None
 
     def endGo(self):
@@ -42,23 +42,23 @@ class TimeStatus(Packer, object):
     def pause(self):
         self.pauseflag = True
         if self.go_startTime:
-            self.go_pauseTime = time.clock()
+            self.go_pauseTime = time.time()
             self.go_lastTime += self.go_pauseTime - self.go_startTime
             self.go_startTime = None
 
         if self.done_startTime:
-            self.done_pauseTime = time.clock()
+            self.done_pauseTime = time.time()
             self.done_lastTime += self.done_pauseTime - self.done_startTime
             self.done_startTime = None
 
     def startDone(self):
         if not self.done_startTime and not self.done_end:
             self.done_pauseTime = None
-            self.done_startTime = time.clock()
+            self.done_startTime = time.time()
 
     def endDone(self):
         if self.done_startTime:
-            self.done_pauseTime = time.clock()
+            self.done_pauseTime = time.time()
             self.done_lastTime += self.done_pauseTime - self.done_startTime
 
             self.done_startTime = None
@@ -76,15 +76,13 @@ class TimeStatus(Packer, object):
         self.done_end = False
 
     def getGoDuration(self):
-        return self.go_lastTime + (time.clock() - self.go_startTime) if self.go_startTime else self.go_lastTime
+        return self.go_lastTime + (time.time() - self.go_startTime) if self.go_startTime else self.go_lastTime
 
     def getDoneDuration(self):
-        return self.done_lastTime + (time.clock() - self.done_startTime) if self.done_startTime else self.done_lastTime
+        return self.done_lastTime + (time.time() - self.done_startTime) if self.done_startTime else self.done_lastTime
 
     def __packet_params__(self):
         return ['go_lastTime', 'done_lastTime']
-
-
 
 
 class Progress(Packer, object):
@@ -208,11 +206,11 @@ class Piece(object):
 
     def start(self):
         if not self.last_clock:
-            self.start_clock = time.clock()
+            self.start_clock = time.time()
 
     def pause(self):
         if self.last_clock:
-            self.last_time += time.clock() - self.start_clock
+            self.last_time += time.time() - self.start_clock
             self.start_clock = None
             self.last_clock = None
 
@@ -223,6 +221,7 @@ AUTO = 1
 import threading, math, zlib
 import DLInspector, DLAllotter
 
+from DLInfos import FileStorage
 
 
 
@@ -237,6 +236,8 @@ class GlobalProgress(Packer, object):
 
         self.piece = Piece()
         self.status = TimeStatus()
+
+        self.fs = FileStorage()
 
         self.allotter = DLAllotter.Allotter(Handler, self)
         self.inspector = DLInspector.Inspector(Handler, self, self.allotter)
@@ -290,6 +291,13 @@ class GlobalProgress(Packer, object):
             if not i.status.go_end:
                 break
         else:
+            if self.__mode__ == AUTO:
+                miss = self.checkCompleteness()
+                if miss:
+                    self.insert(self.allotter.assignUrlid(), *miss)
+                    self.run()
+                    return
+
             self.status.endGo()
             self.close()
 
@@ -378,20 +386,20 @@ class GlobalProgress(Packer, object):
 
     def getAvgSpeed(self):
         if self.status.go_startTime is not None and not self.status.endflag:
-            totaltime = time.clock() - self.status.go_startTime
+            totaltime = time.time() - self.status.go_startTime
         else:
             totaltime = 0
 
         totaltime += self.status.go_lastTime
 
-        return (self.handler.file.size - self.getLeft()) * 1.0 / totaltime
+        return (self.handler.file.size - self.getLeft()) * 1.0 / totaltime if totaltime else 0
 
 
     def getInsSpeed(self, update=True):
         with self.__insspeed_lock__:
 
             curleft = self.getLeft()
-            curclock = time.clock()
+            curclock = time.time()
 
             if self.piece.last_left is None:
                 self.piece.last_left = curleft
@@ -403,9 +411,6 @@ class GlobalProgress(Packer, object):
 
             incbyte = self.piece.last_left - curleft
             incclock = curclock - self.piece.last_clock
-
-            # if incbyte < 0:
-            #     pass
 
             if update:
                 self.piece.last_left = curleft
@@ -424,52 +429,56 @@ class GlobalProgress(Packer, object):
             math.ceil(self.handler.file.size*1.0 / self.handler.file.BLOCK_SIZE)))]
 
 
+    def checkCompleteness(self):
+        with self.__progresses_lock__:
+            _ranges = [i.split('-') for i in self.progresses.keys()]
+            _ranges = sorted(_ranges, key=lambda x: int(x[0]))
+
+            miss = []
+            for i in range(len(_ranges)-1):
+                if _ranges[i][1] != _ranges[i+1][0]:
+                    miss.append((int(_ranges[i][1]), int(_ranges[i+1][0])))
+
+            if int(_ranges[-1][1]) != self.handler.file.size:
+                miss.append((_ranges[-1][1], self.handler.file.size))
+
+            return miss
+
+
     def releaseBuffer(self):
-        # if self.__buff_lock__.locked():
-        #     return
         with self.__buff_lock__:
             buffqueue = []
 
             for i in self.progresses.values():
                 if i.processor.buff:
-                    buffqueue.append(i)
+                    buffqueue.append(i.processor)
 
             if not buffqueue:
                 return
-            msg = 'ReleaseBuffer: +++++++++++'
-            extra = {'progress': '%010s-%010s' % ('..........', '..........'), 'urlid': '.'}
-            logger.info(msg, extra=extra)
-            msg = 'ReleaseBuffer: BUFF_SIZE = %d' % self.__buff_counter__
-            extra = {'progress': '..........-..........', 'urlid': '.'}
-            logger.info(msg, extra=extra)
 
-            f = self.handler.file.fp if self.__mode__ == MANUAL else \
+            f = self.fs if self.__mode__ == MANUAL else \
                 open(os.path.join(self.handler.file.path, self.handler.file.name), 'rb+')
             with f:
-                for progress in buffqueue:
-                    with progress.processor.__buff__lock__:
-                        f.seek(progress.begin + progress.done_inc)
-                        f.write(progress.processor.buff)
-                        progress.done(len(progress.processor.buff))
-                        progress.processor.buff = b''
+                for processor in buffqueue:
+                    processor.releaseBuffer(f)
+
                 f.flush()
-            # f.close()
+
+            gc.collect()
 
             self.save()
-            self.__buff_counter__ = 0
+
             self.__release_thread__ = None
-            msg = 'ReleaseBuffer: -----------'
-            extra = {'progress': '%010s-%010s' % ('..........', '..........'), 'urlid': '.'}
-            logger.info(msg, extra=extra)
 
 
     def checkBuffer(self, bytelen):
         self.__buff_counter__ += bytelen
 
         if self.__buff_counter__ >= self.handler.file.buffer_size:
-            if not self.__release_thread__:
-                self.__release_thread__ = threading.Thread(target=self.releaseBuffer, name='ReleaseBuffer')
-                self.__release_thread__.start()
+            # if self.__release_thread__:
+            self.__buff_counter__ = 0
+            self.__release_thread__ = threading.Thread(target=self.releaseBuffer, name='ReleaseBuffer')
+            self.__release_thread__.start()
 
     def save(self):
         if not self.__packet_frame__:
@@ -502,10 +511,6 @@ class GlobalProgress(Packer, object):
                     odd[0] = i
 
             if not progress and odd[0] and odd[1]:
-                msg = 'OddRanges: %010d-%010d' % (Range[0], Range[1])
-                extra = {'progress': '%010s-%010s' % ('.'*10, '.'*10), 'urlid': '.'}
-                logger.warning(msg, extra=extra)
-
                 return Range
 
             return progress.processor.cutRequest(Range)
@@ -545,11 +550,12 @@ class GlobalProgress(Packer, object):
 
         self.status.endflag = self.status.go_end = self.status.done_end = self.isEnd()
 
-    def __del__(self):
-        self.releaseBuffer()
-        if self.__mode__ == AUTO:
-            if not self.isEnd():
-                self.save()
+    # def __del__(self):
+    #     self.releaseBuffer()
+    #     if self.__mode__ == AUTO:
+    #         if not self.isEnd():
+    #             self.save()
 
+        # object.__del__(self)
 
-
+        # del self.__del__

@@ -10,7 +10,6 @@ class Manager(Packer, object):
         self.id_map = []
         self.name_id = {}
 
-        # self.order = []
         self.max_task = 2
 
         self.queue = TaskQueue()
@@ -20,13 +19,6 @@ class Manager(Packer, object):
     def __inspector__(self):
 
         while True:
-            # tmp = self.queue.run[:]
-            # for i in tmp:
-            #     if self.tasks[i].isEnd():
-            #         self.tasks[i].close()
-            #         self.queue.run.remove(i)
-            #         self.queue.done.append(i)
-
             self.checkRunQueue()
 
             self.run()
@@ -87,7 +79,6 @@ class Manager(Packer, object):
         self.name_id[name] = id
 
         self.id_map[id] = True
-        # self.order.append(id)
         self.queue.undone.append(id)
 
         return id

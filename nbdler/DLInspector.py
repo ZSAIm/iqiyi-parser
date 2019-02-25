@@ -5,7 +5,7 @@
 import logging, math
 import time, threading
 
-logger = logging.getLogger('nbdler')
+# logger = logging.getLogger('nbdler')
 
 
 class Inspector(object):
@@ -46,7 +46,8 @@ class Inspector(object):
 
             progresses = self.globalprog.progresses.copy()
             for i in progresses.values():
-                i.processor.run()
+                if not i.processor.isGoEnd() and not i.processor.isRunning():
+                    i.processor.run()
 
 
 
@@ -59,7 +60,7 @@ class Inspector(object):
             with self.allotter.__allotter_lock__:
                 for i in range(self.handler.url.max_conn - len(self.globalprog.getConnections())):
 
-                    if self.globalprog.status   .endflag or self.globalprog.pause_req or self.globalprog.status.pauseflag:
+                    if self.globalprog.status.endflag or self.globalprog.pause_req or self.globalprog.status.pauseflag:
                         break
 
                     ask_urlid, ask_range = self.allotter.assign()
@@ -67,9 +68,9 @@ class Inspector(object):
                         ask_range = self.globalprog.askCut(ask_range)
                         if ask_range:
                             progress = self.globalprog.insert(ask_urlid, *ask_range)
-                            msg = 'Insert: %010d-%010d, [%d]' % (ask_range[0], ask_range[1], ask_urlid)
-                            extra = {'progress': '%010s-%010s' % ('..........', '..........'), 'urlid': '.'}
-                            logger.info(msg, extra=extra)
+                            # msg = 'Insert: %010d-%010d, [%d]' % (ask_range[0], ask_range[1], ask_urlid)
+                            # extra = {'progress': '%010s-%010s' % ('..........', '..........'), 'urlid': '.'}
+                            # logger.info(msg, extra=extra)
                             progress.run()
             time.sleep(3)
 

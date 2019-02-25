@@ -28,22 +28,25 @@ class Handler(Packer, object):
     def __init__(self):
         self.url = UrlPool()
         self.file = File()
-        self.__auto_global__ = GlobalProgress(self, AUTO)
 
-        self.__manual_global__ = GlobalProgress(self, MANUAL)
+        self.__globalprog__ = GlobalProgress(self, AUTO)
 
         self.__new_project__ = True
+        self.__batch_thread__ = None
 
-        self.globalprog = self.__auto_global__
+        self.globalprog = self.__globalprog__
 
     def uninstall(self):
-        pass
-
+        self.globalprog = self.__globalprog__
 
     def install(self, GlobalProgress):
         self.globalprog = GlobalProgress
 
-    def batchAdd(self, **kwargs):
+    def __batchAdd__(self, pack_yield):
+        for iter_kw in pack_yield:
+            self.addNode(**iter_kw)
+
+    def batchAdd(self, wait=True, **kwargs):
         global __URL_NODE_PARAMS__
 
         pack_yield = []
@@ -61,9 +64,11 @@ class Handler(Packer, object):
 
             pack_yield.append(node)
 
-        for iter_kw in pack_yield:
-            self.addNode(**iter_kw)
-
+        if wait is False:
+            self.__batch_thread__ = threading.Thread(target=self.__batchAdd__, args=(pack_yield, ))
+            self.__batch_thread__.start()
+        else:
+            self.__batchAdd__(pack_yield)
 
     def addNode(self, *args, **kwargs):
         self.url.addNode(*args, **kwargs)
@@ -86,13 +91,12 @@ class Handler(Packer, object):
                 if i.url == url:
                     self.url.delete(i.id)
 
-    def insert(self, begin, end, thread_num=1):
-        self.globalprog = self.__manual_global__
+    def insert(self, begin, end, Urlid=None, thread_num=1):
 
-        put_urlid = self.globalprog.allotter.assignUrl()
+        put_urlid = self.globalprog.allotter.assignUrlid() if not Urlid else Urlid
         if put_urlid != -1:
 
-            self.file.fp.insert(begin, end)
+            self.globalprog.fs.insert(begin, end)
 
             for i in self.globalprog.allotter.splitRange((begin, end), thread_num):
                 self.globalprog.insert(put_urlid, i[0], i[1])
@@ -101,11 +105,7 @@ class Handler(Packer, object):
         if not self.globalprog.progresses:
             raise Exception('EmptyEqueue')
 
-        self.globalprog = self.__manual_global__
-
         self.globalprog.run()
-
-
 
 
     def getFileName(self):
@@ -137,10 +137,10 @@ class Handler(Packer, object):
 
 
     def getSegsValue(self):
-        return self.file.fp.getvalue()
+        return self.globalprog.fs.getvalue()
 
     def getSegsSize(self):
-        return self.file.fp.getStorageSize()
+        return self.globalprog.fs.getStorageSize()
 
 
     def getUrlsThread(self):
@@ -174,20 +174,22 @@ class Handler(Packer, object):
         if os.path.isfile(os.path.join(self.file.path, self.file.name + '.nbdler')):
             os.remove(os.path.join(self.file.path, self.file.name + '.nbdler'))
 
-    def fileVerify(self, sample_size=1024):
+    def fileVerify(self, sample_size=4096):
+        self.install(GlobalProgress(self, MANUAL))
+
         if sample_size > self.file.BLOCK_SIZE:
             raise Exception('ParamsError')
 
         for i, j in self.globalprog.progresses.items():
             Range = segToRange(i)
-            self.insert(Range[1] - sample_size, Range[1], 1)
+            self.insert(Range[1] - sample_size, Range[1])
 
         self.manualRun()
 
         while not self.globalprog.isEnd():
             time.sleep(0.1)
 
-        all_value = self.file.fp.getvalue()
+        all_value = self.globalprog.fs.getvalue()
 
         damage = []
 
@@ -198,19 +200,66 @@ class Handler(Packer, object):
                 if f.read(sample_size) != j:
                     damage.append(i)
 
+        self.uninstall()
         return damage
 
 
     def fix(self, segs):
         self.fix(segs)
 
-    def sampleDetect(self):
-        pass
+    def sampleUrls(self, sample_size=1024 * 1024):
+
+        import random
+
+        self.url.matchSize()
+
+        if self.file.size < sample_size:
+            sample_size = self.file.size
+
+        _begin = random.randint(0, self.file.size - sample_size)
+        _end = _begin + sample_size
+
+        global_dict = {}
+        for i in self.url.getUrls().keys():
+            glob = GlobalProgress(self, MANUAL)
+            global_dict[i] = glob
+            self.install(glob)
+            self.insert(_begin, _end, i)
+            self.manualRun()
+
+        while True:
+            for i in global_dict.values():
+                if not i.isEnd():
+                    break
+            else:
+                break
+            time.sleep(0.1)
+
+        samples = {}
+
+        for i, j in global_dict.items():
+            i.fs.seek(_begin)
+            samples[i] = i.fs.read(sample_size)
+
+        sample_type = []
+        sample_type.append([samples.keys()[0]])
+        for i, j in samples.items():
+            for m in sample_type:
+                if i not in m:
+                    if samples[i] == samples[m[0]]:
+                        m.append(i)
+                        break
+                else:
+                    break
+            else:
+                sample_type.append([i])
+
+        self.uninstall()
+
+        return sample_type
 
 
     def run(self):
-        # self.__mode__ = AUTO
-        self.globalprog = self.__auto_global__
         if self.__new_project__:
             self.file.makeFile()
             self.globalprog.allotter.makeBaseConn()

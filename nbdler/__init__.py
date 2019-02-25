@@ -9,16 +9,13 @@
 
 
 from DLManager import Manager
-import DLHandler
+from DLProgress import GlobalProgress
+from DLHandler import AUTO, MANUAL, Handler
 import zlib
 import io
 from wsgiref.headers import Headers
 
-__all__ = ['open', 'DLHandler']
-
-import nbdler
-
-
+__all__ = ['open', 'DLHandler', 'DLManager', 'DLProgress']
 
 def open(fp=None, **kwargs):
     dlh = DLHandler.Handler()

@@ -12,7 +12,7 @@ if sys.version_info < (3, 0):
     import urllib2 as urllib_request
 
 from wsgiref.headers import Headers
-import re
+import re,time
 
 from packer import Packer
 import threading
@@ -74,12 +74,15 @@ class UrlPool(Packer, object):
             id = self.newID()
 
         urlobj = Url(id, url, cookie, headers, host, port, path, protocol, proxy, max_thread)
-        urlobj.activate()
-
-        self.list.append(urlobj)
-        self.dict[id] = urlobj
-        self.id_map[id] = True
-
+        try:
+            urlobj.activate()
+        except Exception:
+            return False
+        else:
+            self.list.append(urlobj)
+            self.dict[id] = urlobj
+            self.id_map[id] = True
+            return True
 
     def getNextId(self, cur_id):
 
@@ -93,17 +96,14 @@ class UrlPool(Packer, object):
                 break
         return next_id
 
-    def hasUrl(self, Urlid):
-        return Urlid in self.getUrls()
-    
     def getUrls(self):
         return self.dict
 
     def getUrl(self, Urlid):
         return self.dict[Urlid]
 
-    # def hasUrl(self, url):
-    #     return url in self.dict.keys()
+    def hasUrl(self, url):
+        return url in self.dict.keys()
 
     def newID(self):
         for i, j in enumerate(self.id_map):
@@ -128,8 +128,6 @@ class UrlPool(Packer, object):
 
         content_length = int(self.list[0].target.headers.get('Content-Length', -1))
 
-        # if content_length == -1:
-        #     raise Exception('"content-length" NO FOUND', content_length)
 
         for i in self.list[1:]:
             if int(i.target.headers.get('Content-Length', -1)) != content_length:
@@ -228,7 +226,7 @@ class Url(Packer, object):
         self.port = port if port is not None else getattr(self, 'port', None)
 
         self.path = path if path is not None else getattr(self, 'path', None)
-        self.protocol = protocol if protocol is not None else getattr(self, 'protocal', None)
+        self.protocol = protocol if protocol is not None else getattr(self, 'protocol', None)
 
         self.cookie = cookie
 
@@ -237,23 +235,15 @@ class Url(Packer, object):
         self.proxy = proxy
         self.target = Target()
 
-        self.target_lock = threading.Lock()
-
         self.max_thread = max_thread
 
 
     def reload(self):
         self.target.load(self.url)
 
-    # def update(self):
-    #     pass
-
-
-
-
     def __setattr__(self, key, value):
+        object.__setattr__(self, key, value)
         if key == 'url':
-            object.__setattr__(self, key, value)
             self.protocol, s1 = urllib_parse.splittype(self.url)
             if s1:
                 s2, self.path = urllib_parse.splithost(s1)
@@ -266,9 +256,6 @@ class Url(Packer, object):
                 elif self.protocol == 'https':
                     self.port = 443
 
-        else:
-            object.__setattr__(self, key, value)
-
     def activate(self):
         res, cookie_dict = self.__collect__()
         if res.getcode() == 200:
@@ -280,8 +267,6 @@ class Url(Packer, object):
                 headers_items = res.getheaders()
 
             self.target.update(res.geturl(), headers_items)
-            # self.target = Target(res.url, cookiejar, res.headers.dict.copy())
-            # self.target.proxy = self.proxy
         else:
             raise Exception('UrlNoRespond or UrlError')
 
@@ -294,7 +279,17 @@ class Url(Packer, object):
         if self.cookie:
             _header.update({'Cookie': self.cookie})
         req = urllib_request.Request(self.url, headers=_header, origin_req_host=self.host)
-        res = opener.open(req)
+        error_counter = 0
+        while error_counter < 5:
+            try:
+                res = opener.open(req)
+                break
+            except:
+                error_counter += 1
+            time.sleep(1)
+        else:
+            # return None, None
+            raise Exception('UrlNotRespond')
 
         return res, Cookiejar._cookies
 
@@ -320,24 +315,19 @@ class File(Packer, object):
 
         self.size = size
 
-        self.fp = FileStorage()
+        # self.fp = FileStorage()
         self.BLOCK_SIZE = block_size
 
         self.buffer_size = 20 * 1024 * 1024
 
-        # self.nbdler_fp = None
-
-
     def __setattr__(self, key, value):
+        object.__setattr__(self, key, value)
         if key == 'name':
-            object.__setattr__(self, key, value)
             self.extension = self.name[self.name.rindex('.'):] if '.' in self.name else ''
-        else:
-            object.__setattr__(self, key, value)
+
 
     def makeFile(self, withdir=True):
-
-        self.name = self.checkName()
+        # self.name = self.checkName()
 
         if withdir:
             if self.path and not os.path.exists(self.path):
@@ -349,8 +339,6 @@ class File(Packer, object):
         with open(os.path.join(self.path, self.name), 'wb') as f:
             f.seek(self.size - 1)
             f.write(b'\x00')
-
-
 
     def checkName(self):
 
@@ -369,9 +357,9 @@ class File(Packer, object):
     def __packet_params__(self):
         return ['path', 'name', 'size', 'BLOCK_SIZE', 'buffer_size']
 
-
     def __del__(self):
-        self.fp.close()
+        # self.fp.close()
+        pass
 
 
 
@@ -392,7 +380,6 @@ class FileStorage(object):
         self.startpos = 0
         self.offset = 0
         self.closed = False
-
 
     def __enter__(self):
         pass
@@ -457,7 +444,9 @@ class FileStorage(object):
     def close(self):
         for i in self._segs.values():
             i.close()
+            del i
 
+        self.closed = True
 
     def getStorageSize(self):
         size = 0
@@ -474,4 +463,6 @@ class FileStorage(object):
         return retvalue
 
 
+    def __del__(self):
+        self.close()
 
