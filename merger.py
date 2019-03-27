@@ -1,6 +1,6 @@
 import threading,os
 
-class merger(threading.Thread):
+class Merger(threading.Thread):
     def __init__(self, destination_path_name, source_path_name_list):
         threading.Thread.__init__(self)
         self.destpathNa = destination_path_name
@@ -15,6 +15,7 @@ class merger(threading.Thread):
             self.sumSize = 0
 
         self.now = 0
+
     def run(self):
         # print self.destpathNa.decode('UTF-8')
         with open(unicode(self.destpathNa), 'wb') as destFile:

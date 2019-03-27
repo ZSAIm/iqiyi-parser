@@ -117,8 +117,8 @@ class Handler(Packer, object):
     def getUrls(self):
         return self.url.dict
 
-    def getInsSpeed(self):
-        return self.globalprog.getInsSpeed()
+    def getInsSpeed(self, update=True):
+        return self.globalprog.getInsSpeed(update)
 
     def getAvgSpeed(self):
         return self.globalprog.getAvgSpeed()

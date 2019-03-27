@@ -294,10 +294,11 @@ class GlobalProgress(Packer, object):
             if self.__mode__ == AUTO:
                 miss = self.checkCompleteness()
                 if miss:
-                    self.insert(self.allotter.assignUrlid(), *miss)
-                    self.run()
-                    return
+                    for i in miss:
+                        self.insert(self.allotter.assignUrlid(), *i)
+                        self.run()
 
+                    return
             self.status.endGo()
             self.close()
 
@@ -440,7 +441,7 @@ class GlobalProgress(Packer, object):
                     miss.append((int(_ranges[i][1]), int(_ranges[i+1][0])))
 
             if int(_ranges[-1][1]) != self.handler.file.size:
-                miss.append((_ranges[-1][1], self.handler.file.size))
+                miss.append((int(_ranges[-1][1]), self.handler.file.size))
 
             return miss
 

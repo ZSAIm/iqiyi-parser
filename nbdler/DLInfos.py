@@ -68,8 +68,8 @@ class UrlPool(Packer, object):
             host=None, port=None, path=None, protocol=None,
             proxy=None, max_thread=-1):
 
-        if not url:
-            return False
+        # if not url:
+        #     return False
         if id == -1 or id == None:
             id = self.newID()
 
@@ -77,7 +77,15 @@ class UrlPool(Packer, object):
         try:
             urlobj.activate()
         except Exception:
-            return False
+            try:
+                urlobj.activate()
+            except Exception:
+                try:
+                    urlobj.activate()
+                except Exception:
+                    print('error '*4)
+                    return False
+
         else:
             self.list.append(urlobj)
             self.dict[id] = urlobj
@@ -125,7 +133,6 @@ class UrlPool(Packer, object):
     def matchSize(self):
         if not self.list:
             raise Exception('EmptyUrlpool')
-
         content_length = int(self.list[0].target.headers.get('Content-Length', -1))
 
 
@@ -136,8 +143,8 @@ class UrlPool(Packer, object):
         return True
 
     def getFileSize(self):
-        if not self.matchSize():
-            raise Exception('FileSizeNoMatch')
+        # if not self.matchSize():
+        #     raise Exception('FileSizeNoMatch')
 
         content_length = int(self.list[0].target.headers.get('Content-Length', -1))
 
@@ -204,7 +211,7 @@ class Target(object):
             elif self.protocol == 'https':
                 self.port = 443
 
-        self.headers = None
+        # self.headers = None
 
     def update(self, url=None, headers=None):
         if url:
@@ -265,7 +272,6 @@ class Url(Packer, object):
 
             if sys.version_info >= (3, 0):
                 headers_items = res.getheaders()
-
             self.target.update(res.geturl(), headers_items)
         else:
             raise Exception('UrlNoRespond or UrlError')

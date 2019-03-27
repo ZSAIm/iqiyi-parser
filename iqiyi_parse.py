@@ -21,6 +21,9 @@ def raw_decompress(data, headers_msg):
         data = zlib.decompress(data)
     return data
 
+_Iqiyi_ = None
+_LastRes_ = None
+
 HEADERS = {
     'Connection': 'keep-alive',
     'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.186 Safari/537.36',
@@ -112,26 +115,28 @@ class Iqiyi:
         vid = re.search('''param\['vid'\] = "(.+?)"''', text, re.I | re.S).group(1)
         uid = self.make_random_id()
 
-        videos_msg = {}
+        videos_res = {}
 
         for bid in bids:
-            json_msg = self.__parse(tvid, vid, uid, bid)
-            if not json_msg:
+            json_res = self.__parse(tvid, vid, uid, bid)
+            if not json_res:
                 continue
-            msg = json_msg['data']['program']['video']
+            res = json_res['data']['program']['video']
 
             # scrsz = ''
             sel = None
-            for i in msg:
+            for i in res:
                 if 'fs' in i and i['_selected'] is True:
                     sel = i
+                    # videos_res[bid] = sel
+                    break
                     # scrsz = i['scrsz']
 
                     # for j, k in i:
                     # fs.append(i['fs'])
-            videos_msg[sel['scrsz']] = {'fs': sel['fs'], 'vsize': sel['vsize'], 'ff': sel['ff'], 'bid': sel['bid'], '@json': msg}
+            videos_res[sel['bid']] = sel
 
-        return videoname, videos_msg
+        return videoname, videos_res
 
     def __parse(self, tvid, vid, uid, bid):
         js_context = ''
@@ -200,8 +205,22 @@ class Iqiyi:
         msg = json.loads(text)
         return msg['l'], msg
 
-if __name__ == "__main__":
-    a = Iqiyi()
-    # b = a.parse('http://www.iqiyi.com/a_19rrgxwtfh.html')
-    b = a.parse('https://www.iqiyi.com/a_19rrhdfh2l.html')
-    pass
+
+def init():
+    global _Iqiyi_
+    _Iqiyi_ = Iqiyi()
+
+
+def parse(url, bid=[600]):
+    global _Iqiyi_, _LastRes_
+    _LastRes_ = _Iqiyi_.parse(url, bid)
+    return _LastRes_
+
+def activatePath(path):
+    global _Iqiyi_
+    return _Iqiyi_.activate_path(path)
+
+
+def getLastRes():
+    global _LastRes_
+    return _LastRes_
