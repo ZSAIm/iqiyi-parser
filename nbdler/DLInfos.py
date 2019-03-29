@@ -55,7 +55,8 @@ HEADERS_CHROME = Headers([
 ])
 
 class UrlPool(Packer, object):
-    def __init__(self, max_conn=DEFAULT_MAX_CONNECTIONS, max_speed=-1):
+    def __init__(self, parent, max_conn=DEFAULT_MAX_CONNECTIONS, max_speed=-1):
+        self.parent = parent
         self.list = []
         self.dict = {}
 
@@ -64,12 +65,17 @@ class UrlPool(Packer, object):
         self.max_conn = max_conn
         self.max_speed = max_speed
 
+    def reloadBadUrl(self):
+        for i in self.list:
+            if not i.target.headers:
+                i.activate()
+
+
     def addNode(self, id=-1, url='', cookie='', headers=HEADERS_CHROME,
             host=None, port=None, path=None, protocol=None,
             proxy=None, max_thread=-1):
 
-        # if not url:
-        #     return False
+
         if id == -1 or id == None:
             id = self.newID()
 
@@ -91,6 +97,7 @@ class UrlPool(Packer, object):
             self.dict[id] = urlobj
             self.id_map[id] = True
             return True
+
 
     def getNextId(self, cur_id):
 
@@ -145,6 +152,8 @@ class UrlPool(Packer, object):
     def getFileSize(self):
         # if not self.matchSize():
         #     raise Exception('FileSizeNoMatch')
+        if not self.list[0].target.headers:
+            return -1
 
         content_length = int(self.list[0].target.headers.get('Content-Length', -1))
 
@@ -310,7 +319,8 @@ class Url(Packer, object):
 import os
 
 class File(Packer, object):
-    def __init__(self, name='', path='', size=-1, block_size=1024*1024):
+    def __init__(self, parent, name='', path='', size=-1, block_size=1024*1024):
+        self.parent = parent
         self.path = path
 
         self.name = name
@@ -334,6 +344,21 @@ class File(Packer, object):
 
     def makeFile(self, withdir=True):
         # self.name = self.checkName()
+        if self.size == -1:
+            while self.size == -1:
+                time.sleep(0.01)
+            # if self.size == -1:
+                self.parent.url.reloadBadUrl()
+                if self.parent.shutdown_flag:
+                    break
+
+            # if self.size == -1:
+            #     self.parent.url.reloadBadUrl()
+            # # if self.size == -1:
+            #     self.parent.url.reloadBadUrl()
+
+        if self.size == -1:
+            raise Exception('UrlTimeout.')
 
         if withdir:
             if self.path and not os.path.exists(self.path):

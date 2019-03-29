@@ -47,11 +47,14 @@ class Inspector(object):
             progresses = self.globalprog.progresses.copy()
             for i in progresses.values():
                 if not i.processor.isGoEnd() and not i.processor.isRunning():
+                    if self.globalprog.pause_req:
+                        return
+
                     i.processor.run()
 
-
-
-            time.sleep(2)
+            if self.globalprog.pause_req:
+                return
+            time.sleep(1)
 
     def __allotter__(self):
         while True:

@@ -90,6 +90,8 @@ class Processor(object):
 
         self.error_counter = ErrorCounter()
 
+        self.cur_thread = None
+
     def loadUrl(self, Urlid):
 
         urls = self.getHandler().url.getUrls()
@@ -123,6 +125,10 @@ class Processor(object):
 
     def selfCheck(self):
 
+        if self.opareq.pause:
+            self.getPause()
+            return False
+
         if not self.url:
             self.loadUrl(self.urlid)
 
@@ -150,11 +156,9 @@ class Processor(object):
     def run(self):
         with self.__run_lock__:
             if self.selfCheck():
-                self.__thread__ = threading.Thread(target=self.__getdata__, name='Processor')
-                self.__thread__.start()
-
-
-
+                thr = threading.Thread(target=self.__getdata__, name='Processor')
+                thr.start()
+                self.__thread__ = thr
 
     def __getdata__(self):
         if self.opareq.cut:
@@ -233,6 +237,7 @@ class Processor(object):
                      'Host: %s\r\n' % self.target.host + \
                      'Connection: keep-alive\r\n' + \
                      'Range: bytes=%d-%d\r\n' % Range + \
+                     'Accept-Ranges: bytes\r\n' + \
                      '%s' + \
                      '\r\n'
 

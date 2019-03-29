@@ -26,8 +26,8 @@ __URL_NODE_PARAMS__ = {
 class Handler(Packer, object):
 
     def __init__(self):
-        self.url = UrlPool()
-        self.file = File()
+        self.url = UrlPool(self)
+        self.file = File(self)
 
         self.__globalprog__ = GlobalProgress(self, AUTO)
 
@@ -35,6 +35,8 @@ class Handler(Packer, object):
         self.__batch_thread__ = None
 
         self.globalprog = self.__globalprog__
+
+        self.shutdown_flag = False
 
     def uninstall(self):
         self.globalprog = self.__globalprog__

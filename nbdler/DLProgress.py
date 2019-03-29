@@ -306,12 +306,13 @@ class GlobalProgress(Packer, object):
         for i, j in self.progresses.items():
             with j.processor.__opa_lock__:
                 if not j.status.go_end and not j.status.pauseflag:
-                    j.processor.pause()
+                    if j.processor.isRunning():
+                        j.processor.pause()
 
     def isAllPause(self):
         self.makePause()
         for i in self.progresses.values():
-            if not i.isPause() and not i.isGoEnd():
+            if not i.isPause() and not i.isGoEnd() and i.processor.isRunning():
                 break
         else:
             if not self.allotter.__allotter_lock__.locked():
@@ -322,13 +323,15 @@ class GlobalProgress(Packer, object):
     def pause(self):
 
         self.pause_req = True
-
+        while self.inspector.__selfcheck_thread__.isAlive():
+            time.sleep(0.01)
+            break
         while True:
             if self.isAllPause():
                 break
             if self.isEnd():
                 break
-            time.sleep(0.1)
+            time.sleep(0.01)
 
         self.piece.pause()
         self.status.pause()

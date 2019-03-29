@@ -17,16 +17,9 @@ class Merger(threading.Thread):
         self.now = 0
 
     def run(self):
-        # print self.destpathNa.decode('UTF-8')
         with open(unicode(self.destpathNa), 'wb') as destFile:
             for path in self.sourpathNa:
-                # print path.decode('UTF-8')
                 self.now += 1
                 with open(unicode(path), 'rb') as sourFile:
                     destFile.write(sourFile.read())
         self.now = len(self.sourpathNa)
-        # print 'OK'
-
-
-# text = merger('2.txt', '0.txt', '1.txt')
-# text.start()

@@ -97,7 +97,9 @@ class FrameParse_Button_Handler:
 
     @staticmethod
     def godownload(event):
-        gui.frame_parse.EndModal(wx.OK)
+        index = gui.frame_parse.listctrl_parse.GetFirstSelected()
+        if index != -1:
+            gui.frame_parse.EndModal(wx.OK)
 
     @staticmethod
     def copyurl(event):

@@ -20,19 +20,17 @@ resolution = ''
 sel_bid = None
 all_filename = []
 
-def build_dl(names_list, sel_msg):
+def build_dl(sel_msg):
     global dlm, video_title, all_filename
     for i, j in enumerate(all_filename):
         _url, _ = iqiyi.activatePath(sel_msg['fs'][i]['l'])
         filepath = os.path.join(target_path, video_title)
         if os.path.exists(os.path.join(filepath, j + u'.nbdler')) or not os.path.exists(
                 os.path.join(filepath, j)):
-            dl = nbdler.open(filename=j, filepath=filepath, max_conn=5, urls=[_url], wait=True)
+            dl = nbdler.open(filename=j, filepath=filepath, max_conn=3, urls=[_url], wait=False)
             dlm.addHandler(dl, name=i)
         else:
             gui.frame_main.updateBlock(i, gui.COLOR_OK)
-
-
 
     return dlm
 
@@ -48,7 +46,7 @@ def merge_videos():
     _, res = iqiyi.getLastRes()
     path_name_seg = []
     for i in all_filename:
-        path_name_seg.append(os.path.join(video_title, i))
+        path_name_seg.append(os.path.join(target_path, video_title, i))
     mer = Merger(unicode(os.path.join(target_path, video_title + '.' + res[sel_bid]['ff'])), path_name_seg)
     gui.frame_main.initTotal_Merge(len(all_filename))
     mer.start()
@@ -75,7 +73,7 @@ def dl_process(event):
     run_queue = dlm.getRunQueue()
     if not run_queue:
         gui.stopTimer()
-        threading.Thread(target=merge_videos).start()
+        threading.Timer(0.1, merge_videos).start()
 
     new = list(filter(lambda x: x not in gui.frame_main.getItemsDict(), run_queue))
 
@@ -114,10 +112,13 @@ def dl_process(event):
 
     gui.frame_main.updateTotal(cur_inc, dlm.getInsSpeed())
 
+
 def collectInfo():
     global target_path, sel_bid
     target_path = gui.frame_parse.textctrl_path.GetLineText(0)
+
     sel_bid = int(gui.frame_parse.listctrl_parse.GetItemText(gui.frame_parse.listctrl_parse.GetFirstSelected(), 0))
+
 
 
 def main():
@@ -131,8 +132,8 @@ def main():
         gui.frame_parse.Destroy()
         collectInfo()
         video_title, res = iqiyi.getLastRes()
-
         runDownloader(video_title, res[sel_bid])
+
     else:
         exit(0)
 
@@ -152,7 +153,7 @@ def runDownloader(video_title, sel_res):
         generate_names(video_title, sel_res)
 
         gui.frame_main.Show(True)
-        dlm = build_dl(all_filename, sel_res)
+        dlm = build_dl(sel_res)
         dlm.config(max_task=5)
         dlm.run()
         gui.setTimerHandler(dl_process)
@@ -163,3 +164,4 @@ if __name__ == '__main__':
     gui.init()
     main()
     gui.MainLoop()
+    dlm.shutdown()

@@ -15,10 +15,16 @@ class Manager(Packer, object):
         self.queue = TaskQueue()
 
         self.__inspector_thread__ = None
+        self.shutdown_flag = False
+
+        self.__queue_lock__ = threading.Lock()
+
 
     def __inspector__(self):
 
         while True:
+            if self.shutdown_flag:
+                break
             self.checkRunQueue()
 
             self.run()
@@ -29,12 +35,13 @@ class Manager(Packer, object):
             time.sleep(1)
 
     def checkRunQueue(self):
-        tmp = self.queue.run[:]
-        for i in tmp:
-            if self.tasks[i].isEnd():
-                self.tasks[i].close()
-                self.queue.run.remove(i)
-                self.queue.done.append(i)
+        with self.__queue_lock__:
+            tmp = self.queue.run[:]
+            for i in tmp:
+                if self.tasks[i].isEnd():
+                    self.tasks[i].close()
+                    self.queue.run.remove(i)
+                    self.queue.done.append(i)
 
     def getHandler(self, name=None, id=None):
         if name is None and id is None:
@@ -100,6 +107,7 @@ class Manager(Packer, object):
         if id is not None:
             if len(self.queue.run) < self.max_task:
                 self.tasks[id].run()
+                self.queue.run.append(id)
         else:
             tmp = self.queue.undone[:]
             for i in tmp:
@@ -123,12 +131,21 @@ class Manager(Packer, object):
             if id not in self.queue.pause:
                 self.queue.pause.append(id)
         else:
-            for i in self.queue.run:
-                self.tasks[i].pause()
+            tmp = self.getRunQueue()[:]
+            for i in tmp:
+                threading.Thread(target=self.tasks[i].pause).start()
                 if i in self.queue.run:
                     self.queue.run.remove(i)
                 if i not in self.queue.pause:
                     self.queue.pause.append(i)
+
+    def shutdown(self):
+        self.shutdown_flag = True
+        while self.__inspector_thread__ and self.__inspector_thread__.isAlive():
+            time.sleep(0.01)
+
+        self.pause()
+        pass
 
     def close(self):
         pass
