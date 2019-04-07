@@ -75,7 +75,6 @@ class UrlPool(Packer, object):
             host=None, port=None, path=None, protocol=None,
             proxy=None, max_thread=-1):
 
-
         if id == -1 or id == None:
             id = self.newID()
 
@@ -152,6 +151,9 @@ class UrlPool(Packer, object):
     def getFileSize(self):
         # if not self.matchSize():
         #     raise Exception('FileSizeNoMatch')
+        if self.parent.file.size != -1:
+            return self.parent.file.size
+
         if not self.list[0].target.headers:
             return -1
 

@@ -17,6 +17,8 @@ class DialogParser(wx.Dialog):
         self.checkbox_400 = wx.CheckBox(self, wx.ID_ANY, u"400", wx.DefaultPosition, wx.DefaultSize, 0)
         self.checkbox_500 = wx.CheckBox(self, wx.ID_ANY, u"500", wx.DefaultPosition, wx.DefaultSize, 0)
         self.checkbox_600 = wx.CheckBox(self, wx.ID_ANY, u"600", wx.DefaultPosition, wx.DefaultSize, 0)
+        # self.checkbox_700 = wx.CheckBox(self, wx.ID_ANY, u"600", wx.DefaultPosition, wx.DefaultSize, 0)
+        # self.checkbox_800 = wx.CheckBox(self, wx.ID_ANY, u"600", wx.DefaultPosition, wx.DefaultSize, 0)
 
         # self.checkbox_100.SetValue(True)
         # self.checkbox_200.SetValue(True)

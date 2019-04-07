@@ -1,28 +1,23 @@
+# -*- coding: utf-8 -*-
+
 import cookielib
 import random
-import time
+import time, os, random
 import re
 import gzip, zlib
 from io import BytesIO
 import json
 import urllib, urllib2
 from BeautifulSoup import BeautifulSoup
-import PyV8
+# import PyV8
 import ssl
+
+import JSExecutor
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
-def raw_decompress(data, headers_msg):
-    encoding = headers_msg.get('Content-Encoding')
-    if encoding == 'gzip':
-        src_stream = BytesIO(data)
-        data = gzip.GzipFile(fileobj=src_stream).read()
-    elif encoding == 'deflate':
-        data = zlib.decompress(data)
-    return data
-
+_LastRespond_ = None
 _Iqiyi_ = None
-_LastRes_ = None
 
 HEADERS = {
     'Connection': 'keep-alive',
@@ -30,152 +25,156 @@ HEADERS = {
     'Accept': '*/*',
     'Referer': 'http://www.iqiyi.com/',
     'Accept-Encoding': 'gzip, deflate',
-    'Accept-Language': 'zh-CN,zh;q=0.9',
+    'Accept-Language': 'zh-CN,zh;q=0.9'
 }
 
 global_params = {
+    # discrete data
     'tvid': '',
-    'bid': '',
     'vid': '',
-    'src': '01010031010000000000',
+    'src': '01010031010000000000',              # src: n.getPtid(c.isTWLocale()),
+    'tm': '',
+
+    # resolution
+    'bid': '',
+
+    # invariant
     'vt': '0',
     'rs': '1',
-    'uid': '',
     'ori': "pcw",
-    'ps': '0',  # ps: o.switchvd ? 1 : 0,
-    'tm': '',
-    'qd_v': "1",
-    'k_uid': '',
     'pt': '0',
     'd': '0',
+    'qd_v': "1",
     's': "",
     'lid': "",
     'cf': "",
     'ct': "",
-    'authKey': '',
     'k_tag': '1',
+
+    # might change
+    'prio': '{"ff": "f4v", "code": 2}',         # prio: u.prio || JSON.stringify({ff: "f4v", code: 2})
+    'ps': '1',                                  # ps: o.switchvd ? 1 : 0,
+
+    # verify needed
+    'ost': '0',
     'ppt': '0',
-    'dfp': '',
+
     'locale': 'zh_cn',
-    'prio': '{"ff": "mp4", "code": 2}',
-    'pck': '',
-    'k_err_retries': '0',
-    'ut': '0',
-    'bop': '{"version":"7.0","dfp":""}',
+    'k_err_retries': '0',                       # k_err_retries: S
+    'ut': '1',                                  # ut = 0 , 600 bid isn't available
+
+
+    # encrypt key
+    'authKey': '',                              # authKey: r(r("") + L + A),
     'callback': '',
+                                                # vf= cmd5x(t.url.replace(new RegExp("^(http|https)://" + i, "ig"), ""))
+
+    # cookie key (not necessary)
+    'uid': '',                                  # uid: d.getUid(),
+    'dfp': '',                                  # dfp: h.get(),
+    'pck': '',                                  # pck: d.passportCookie()
+    'k_uid': '',                                # k_uid: l.getFluid() || l.getJsuid(),
+                                                # e.bop = JSON.stringify({version: "7.0", dfp: h.get()})
+    'bop': {"version": "7.0", "dfp": ""},
+
+    # new params    2019/04/05
+    # 'k_ft1': '',
+    'k_ft4': '4'                                # k_ft = 4: prefer *.ts ,else *.f4v
 }
 
-class Iqiyi:
 
+
+class Iqiyi:
     def __init__(self):
         self.cookiejar = None
+        self.cookie = None
         self.opener = None
-        self.QC005 = None
-        self.QP001 = '1'
-        # self.uid = None
-        self.tvid = None
-        self.init_opener()
+        self.js_ctx = None
 
-    def init_opener(self):
+        self.user = IqiyiUser()
+
+        self.initOpener()
+
+    def initOpener(self):
         self.cookiejar = cookielib.CookieJar()
         self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cookiejar))
         self.opener.addheaders = list(HEADERS.items())
-        self.QC005 = self.make_random_id()
-        # self.uid = self.make_random_id()
-        self.set_cookie('QC005', self.QC005, 'iqiyi.com', '/')
-        self.set_cookie('QP001', self.QP001, 'iqiyi.com', '/')
 
-    def set_cookie(self, name, value, domain, path):
+    def setCookie(self, name, value, domain, path):
         self.cookiejar.set_cookie(cookielib.Cookie(0, name, value, None, False, domain, True, False, path, True, False,
                                                    None, False, None, None, None))
 
-    def make_random_id(self):
-        chars = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f']
-        id = ""
-        for index in range(0, 32):
-            id += chars[random.randint(0, 15)]
-        return id
+    def loadCookie(self, text):
+        global HEADERS
+        self.cookie = text
+        self.user.extract(text)
+        HEADERS['Cookie'] = text
+        self.initOpener()
 
-    def parse(self, url, bids=[600]):
-        """bid = [100, 200, 300, 400, 500, 600]
-            mean video resolution. the higher bid the higher definition
-            it need a list
-            like [600].
-        """
-        # videoname , tvid
+
+    def getStaticUrlText(self, url):
         req = urllib2.Request(url)
         res = self.opener.open(req)
         raw = res.read()
-        text = str(raw_decompress(raw, res.info()))
+        text = raw_decompress(raw, res.info())
+        return text
 
-        soup = BeautifulSoup(text)
-        videoname = soup.title.string
+    def parse(self, url, bids=[600]):
+        """bid = [100, 200, 300, 400, 500, 600]
+            : video resolution. the higher bid the higher definition
+            require a list.
+        """
+        text = self.getStaticUrlText(url)
+
         tvid = re.search('''param\['tvid'\] = "(.+?)"''', text, re.S).group(1)
-        self.tvid = tvid
         vid = re.search('''param\['vid'\] = "(.+?)"''', text, re.I | re.S).group(1)
-        uid = self.make_random_id()
 
-        videos_res = {}
+        videos_res = []
 
         for bid in bids:
-            json_res = self.__parse(tvid, vid, uid, bid)
-            if not json_res:
+            target_url = self.makeTargetUrl(tvid, vid, bid)
+
+            res = self.getTargetJson(target_url)
+
+            if not res:
                 continue
-            res = json_res['data']['program']['video']
 
-            # scrsz = ''
-            sel = None
-            for i in res:
-                if 'fs' in i and i['_selected'] is True:
-                    sel = i
-                    # videos_res[bid] = sel
-                    break
-                    # scrsz = i['scrsz']
+            videos_res.append(IqiyiRespond(self, res, text))
 
-                    # for j, k in i:
-                    # fs.append(i['fs'])
-            videos_res[sel['bid']] = sel
+        return videos_res
 
-        return videoname, videos_res
-
-    def __parse(self, tvid, vid, uid, bid):
-        js_context = ''
-        with open("ArrayBuffer.js", 'r') as f:
-            js_context += f.read()
-        with open("pcweb.js", 'r') as f:
-            js_context += f.read()
+    def makeTargetUrl(self, tvid, vid, bid):
 
         time_str = str(int(time.time() * 1000))
 
-        ctx = PyV8.JSContext()
-        with PyV8.JSLocker():
-            ctx.enter()
-            ctx.eval(js_context)
+        authkey = JSExecutor.call('authkey', JSExecutor.call('authkey', '') + time_str + tvid)
+        callback = JSExecutor.call('callback')
 
-            authkey = ctx.locals.authkey(ctx.locals.authkey('') + time_str + tvid)
-            callback = ctx.locals.callback()
+        params = {
+            'tvid': tvid,
+            'vid': vid,
+            'bid': str(bid),
+            'tm': time_str,
+            'k_uid': self.user.k_uid,
+            'callback': callback,
+            'authKey': authkey,
+        }
+        new_params = global_params.copy()
+        new_params.update(params)
 
 
-            params = {
-                'tvid': tvid,
-                'vid': vid,
-                'bid': str(bid),
-                'tm': time_str,
-                'k_uid': uid,
-                'callback': callback,
-                'authKey': authkey,
-            }
+        params_encode = urllib.urlencode(new_params)
 
-            global_params.update(params)
-            params_encode = urllib.urlencode(global_params)
+        req_path = '/jp/dash?' + params_encode
+        vf = JSExecutor.call('cmd5x', req_path)
 
-            path_get = '/jp/dash?' + params_encode
-            vf = ctx.locals.vf(path_get)
+        req_path += '&vf=%s' % vf
 
-            path_get += '&vf=%s' % vf
-            ctx.leave()
+        return 'http://cache.video.iqiyi.com/' + req_path.lstrip('/')
 
-        req = urllib2.Request('http://cache.video.iqiyi.com/' + path_get.lstrip('/'))
+    def getTargetJson(self, req_url):
+
+        req = urllib2.Request(req_url)
         res = self.opener.open(req)
         raw = res.read()
         text = raw_decompress(raw, res.info())
@@ -187,40 +186,258 @@ class Iqiyi:
         res.close()
         return ret
 
-    def activate_path(self, path):
+
+class IqiyiUser:
+    def __init__(self):
+        self.dfp = ''               # cookie: __dfp
+        self.pck = ''               # cookie: P00001
+        self.uid = ''               # cookie: P00002['uid]
+        self.k_uid = ''             # cookie: QC005
+
+    def extract(self, cookie_str):
+        decode_cookie = urllib.unquote(cookie_str)
+        __dfp = re.compile('__dfp=([a-z|A-Z|0-9]*)@')
+        P00001 = re.compile('P00001=([a-z|A-Z|0-9]*);')
+        QC005 = re.compile('QC005=([a-z|A-Z|0-9]*);')
+
+        P00002 = re.compile('P00002=({.+?});')
+        P00002_json = json.loads(P00002.search(decode_cookie).group(1))
+
+        self.dfp = __dfp.search(decode_cookie).group(1)
+        self.pck = P00001.search(decode_cookie).group(1)
+        self.uid = P00002_json.get('uid', '')
+        self.k_uid = QC005.search(decode_cookie).group(1)
+
+
+
+class IqiyiRespond:
+    def __init__(self, parent, res_json, text):
+        self.parent = parent
+        self.full_json = res_json
+        self.program = None
+
+        self.text = text
+
+        self.video_urls = []
+
+        self.__extract__(res_json)
+
+    def __extract__(self, res_json):
+        self.program = res_json['data'].get('program', None)
+        self.sel_video = self.__getSelVideo__(self.program)
+
+    def __getSelVideo__(self, program):
+        if program:
+            video = program['video']
+            sel = None
+            for i in video:
+                if i.get('_selected', False) is True:
+                    sel = i
+                    break
+
+            return sel
+        return None
+
+    def getVideoTitle(self):
+
+        soup = BeautifulSoup(self.text)
+        video_title = soup.title.string
+        return video_title
+
+    def getM3U8(self):
+        return self.sel_video.get('m3u8')
+
+    def getBossMsg(self):
+        return self.full_json['data'].get('boss_ts', {}).get('msg', '')
+
+    def getSelBid(self):
+        return self.sel_video['bid']
+
+    def getSelfs(self):
+        return self.sel_video['fs']
+
+    def getUserIP(self):
+        return self.full_json['data']['ctl']['uip']
+
+    def isBoss(self):
+        return self.full_json['data']['ctl']['boss']
+
+    def getUserID(self):
+        return self.full_json['data']['ctl']['uid']
+
+    def getFileFormat(self):
+        return self.sel_video['ff']
+
+    def getTotalFileSize(self):
+        return self.sel_video['vsize']
+
+    def getTvid(self):
+        return self.full_json['data'].get('tvid', None)
+
+    def getVid(self):
+        return self.sel_video['vid']
+
+    def getVideosFullUrl(self):
+        if not self.video_urls:
+            self.__getVideoFullUrl__()
+        return self.video_urls
+
+    def __getVideoFullUrl__(self):
+        m3u8 = self.getM3U8()
+        self.video_urls = []
+        if m3u8:
+            self.video_urls = self.__extract_m3u8__(self.getM3U8())
+        else:
+            for i in self.getSelfs():
+                res = self.makeDispatchUrl(i['l'])
+                self.video_urls.append(res['l'])
+
+    def __extract_m3u8__(self, m3u8):
+        if m3u8:
+            m3u8_parts = re.compile('#EXTINF:\d+,\s+(http://data.video.iqiyi.com/videos/\S+)').findall(m3u8)
+            rex_filename = re.compile('/([a-z|A-Z|0-9]+)\.([A-Z|a-z|0-9]+)\?')
+
+            filenames = []
+            reverse_parts = m3u8_parts[::-1]
+            reverse_part_tails = []
+            for i in reverse_parts:
+                res = rex_filename.search(i)
+                if res.group(1) not in filenames:
+                    filenames.append(res.group(1))
+                    reverse_part_tails.append(i)
+
+            # complete total file
+            part_tails = reverse_part_tails[::-1]
+            ret = []
+            for i in part_tails:
+                path, query_str = urllib.splitquery(i)
+                query_dict = extract_query(query_str)
+                query_dict['start'] = '0'
+                query_str = urllib.urlencode(query_dict)
+                ret.append(path + '?' + query_str)
+
+            return ret
+        return []
+
+    def getAlbumID(self):
+        return self.full_json['data']['aid']
+
+    def getAudiosFullUrl(self):
+        pass
+
+    def getSubTitleFullUrl(self):
+        pass
+
+    def getTotal(self):
+        m3u8 = self.getM3U8()
+        if m3u8:
+            self.video_urls = self.__extract_m3u8__(self.getM3U8())
+            return len(self.video_urls)
+        else:
+            return len(self.getSelfs())
+
+
+    def getBoss(self):
+        return self.full_json['data'].get('boss')
+
+    def getScreenSize(self):
+        return self.sel_video['scrsz']
+
+    def getVideoLanguage(self):
+        return self.sel_video['name']
+
+    def makeDispatchUrl(self, path):
+
+        boss = self.getBoss()
+        rex_filename = re.compile('/([a-z|A-Z|0-9]+)\.([A-Z|a-z|0-9]+)\?')
+        filename = rex_filename.search(path).group(1)
+
+        qyid = self.parent.user.k_uid
+        qypid = '%s__02020031010000000000' % self.getTvid()
+        t = str(boss.get('data', {}).get('t', '')) if boss else ''
+        vid = self.getVid()
+
+        ibt = JSExecutor.call('cmd5x', t + filename)
+        # return t.data && t.data.prv && 1 == t.data.prv && 1 == t.previewType && (i = 60 * t.previewTime * 1e3), i
+        if boss and boss.get('data', {}).get('prv') == 1 and boss['previewTime'] == 1:
+            ptime = int(60 * 1 * 1e3)
+        else:
+            ptime = 0
+
+        QY00001 = boss.get('data', {}).get('u', '') if boss else ''
+
         params = {
             'cross-domain': '1',
-            'qyid': self.QC005,
-            'qypid': '%s__02020031010000000000' % self.tvid,
-            'rn': str(int(time.time() * 1000)),
+            'qyid': qyid,
+            'qypid': qypid,
+            't': t,
+            'cid': 'afbe8fd3d73448c9',
+            'vid': vid,
+            'QY00001': QY00001,
+            'ibt': ibt,
+            'ib': '4',
+            'ptime': ptime,                             # pcweb.js: getPreviewTime: function(e)
+            'su': qyid,
+            'client': '',                               # pcweb.js: e.currentUserIP
+            'z': '',                                    # pcweb.js: e.preDispatchArea
+            'bt': '',                                   # pcweb.js: e.preDefinition
+            'ct': '5',                                  # pcweb.js: e.currentDefinition
+                                                        # pcweb.js: mi: "tv_" + t.albumId + "_" + t.tvid + "_" + t.vid,
+            'mi': 'tv_%s_%s_%s' % (self.getAlbumID(), self.getTvid(), self.getVid()),
+            'e': '',
             'pv': '0.1',
+            'tn': str(random.random()),
 
         }
+        path, query = urllib.splitquery(path)
+        params.update(extract_query(query))
+
         encode_params = urllib.urlencode(params)
 
-        req = urllib2.Request('http://data.video.iqiyi.com/videos/%s' % path.lstrip('/'), encode_params)
-        res = self.opener.open(req)
+        req = urllib2.Request('https://data.video.iqiyi.com/videos/%s?%s' % (path.lstrip('/'), encode_params))
+        res = self.parent.opener.open(req)
         raw = res.read()
         text = raw_decompress(raw, res.info())
         msg = json.loads(text)
-        return msg['l'], msg
+        return msg
+
+
+def raw_decompress(data, headers_msg):
+    encoding = headers_msg.get('Content-Encoding')
+    if encoding == 'gzip':
+        src_stream = BytesIO(data)
+        data = gzip.GzipFile(fileobj=src_stream).read()
+    elif encoding == 'deflate':
+        data = zlib.decompress(data)
+    return data
+
+
+def extract_query(query_str):
+    querys = {}
+    for i in query_str.split('&'):
+        key_value = urllib.splitvalue(i)
+        querys[key_value[0]] = key_value[1]
+
+    return querys
 
 
 def init():
     global _Iqiyi_
+    JSExecutor.init()
     _Iqiyi_ = Iqiyi()
 
-
 def parse(url, bid=[600]):
-    global _Iqiyi_, _LastRes_
-    _LastRes_ = _Iqiyi_.parse(url, bid)
-    return _LastRes_
+    global _Iqiyi_, _LastRespond_
+    _LastRespond_ = _Iqiyi_.parse(url, bid)
+    return _LastRespond_
 
-def activatePath(path):
+def getLastRespond():
+    global _LastRespond_
+    return _LastRespond_
+
+
+def loadCookie(cookie_str):
     global _Iqiyi_
-    return _Iqiyi_.activate_path(path)
+    _Iqiyi_.loadCookie(cookie_str)
 
 
-def getLastRes():
-    global _LastRes_
-    return _LastRes_

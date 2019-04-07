@@ -14,7 +14,7 @@ COLOR_RUN = 4
 class FrameMain(wx.Frame):
     def __init__(self, parent):
         wx.Frame.__init__(self, parent, id=wx.ID_ANY, title='IQIYI视频下载器', pos=wx.DefaultPosition,
-                          size=wx.Size(-1, 380), style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL)
+                          size=wx.Size(-1, 420), style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL)
 
         self.SetSizeHints(wx.DefaultSize, wx.DefaultSize)
         self.SetBackgroundColour(wx.Colour(240, 240, 240))

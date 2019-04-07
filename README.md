@@ -1,11 +1,17 @@
 # 爱奇艺解析器 (IQIYI-parser)
 
-	以游客身份下载爱奇艺视频。
+	爱奇艺视频下载器。【支持导入会员Cookie下载会员视频】
 
-## 注意
-__build目录下编译好的文件一定要把其目录下的两个js放到目录下。__
+# 注意
+## 本程序仅供学习交流，请勿用于非法用途
 
 ## 更新说明
+* **2019/04/07**
+	* 支持解析导出M3U8。
+	* 支持导入会员Cookie来下载VIP视频。
+	* 支持解析下载免费的1080P，2K，4K视频。
+	* JS引擎从PyV8更换到Nodejs。
+	* 更新解析器代码结构。
 * **2019/03/29**
 	* 修复愚蠢的选择目录无法合并问题。
 	* 修复下载中关闭程序无法完全停止关闭程序问题。
@@ -27,19 +33,26 @@ __build目录下编译好的文件一定要把其目录下的两个js放到目�
 ## 使用说明
 
 * 打开程序 main.exe，然后自己摸索。。。
+* 目录下的"Cookie.txt"可以导入Cookie。（在程序运行后写入Cookie.txt，重启程序生效。）
 
-### 以下信息我就先不更新了，将就看吧
-	
-## 项目包含
-* __``/nbdler/*.py ``__: dl目录下的是下载器。(github: https://github.com/ZSAIm/nbdler)
-* __``iqiyi-parse.py``__ : 视频解析。 ( / 目录下的两个js文件是用于解析地址的。)
-* __``merge.py``__: 视频合并。
-* __``/build/*``__: 已经编译好的程序。
 
-## 安装模块
-* __``Pyv8``__		: https://code.google.com/archive/p/pyv8/downloads
-* __``pyperclip``__	: pip install pyperclip
-* __``BeautifulSoup``__	: pip install beautifulsoup
+## TO-DO
+
+* [x] 加入简略GUI交互。
+* [x] 支持导入Cookie。
+* [x] 解耦解析器。
+* [x] 更换JS执行引擎。
+* [ ] 修复下载器Bug。
+* [ ] 优化下载器程序。
+* [ ] 优化执行流程。
+
+## TO-DO or NOT-TO-DO
+
+* [ ] 美化GUI界面。
+
+## NOT-TO-DO
+
+* [ ] 批量视频解析下载。
 
 
 ## 引用项目

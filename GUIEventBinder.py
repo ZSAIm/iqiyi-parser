@@ -57,6 +57,31 @@ def bindButtonEvent(handler_parent, source_parent, items_name):
         gui.frame_parse.Bind(wx.EVT_BUTTON, getattr(handler_parent, i), getattr(source_parent, 'button_' + i))
 
 
+import threading
+
+def __parse__():
+    url = gui.frame_parse.textctrl_url.GetLineText(0)
+    bid = []
+    for i in range(1, 7):
+        if getattr(gui.frame_parse, 'checkbox_%d' % (i * 100)).IsChecked():
+            bid.append(i * 100)
+    try:
+        res = iqiyi.parse(url, bid)
+    except socket.timeout as e:
+        dlg = wx.MessageDialog(gui.frame_parse, u'网络超时,请重试！', u'错误', wx.OK | wx.ICON_ERROR)
+        dlg.ShowModal()
+    else:
+        gui.frame_parse.listctrl_parse.DeleteAllItems()
+        for i in res:
+            data = (i.getSelBid(), i.getScreenSize(), i.getTotal(),
+                    gui.format_byte(i.getTotalFileSize(), '%.1f%s'), i.getFileFormat())
+
+            gui.frame_parse.listctrl_parse.Append(data)
+
+        gui.frame_parse.SetTitle(res[0].getVideoTitle())
+    finally:
+        gui.frame_parse.button_parse.Enable(True)
+
 
 class FrameParse_Button_Handler:
     @staticmethod
@@ -67,25 +92,8 @@ class FrameParse_Button_Handler:
 
     @staticmethod
     def parse(event):
-        url = gui.frame_parse.textctrl_url.GetLineText(0)
-        bid = []
-        for i in range(1, 7):
-            if getattr(gui.frame_parse, 'checkbox_%d' % (i * 100)).IsChecked():
-                bid.append(i*100)
-        try:
-            videoname, res = iqiyi.parse(url, bid)
-        except socket.timeout as e:
-            dlg = wx.MessageDialog(gui.frame_parse, u'网络超时,请重试！', u'错误', wx.OK | wx.ICON_ERROR)
-            dlg.ShowModal()
-        else:
-            gui.frame_parse.listctrl_parse.DeleteAllItems()
-            for i, j in res.items():
-
-                data = (i, j['scrsz'], str(len(j['fs'])), gui.format_byte(j['vsize'], '%.1f%s'), j['ff'])
-                gui.frame_parse.listctrl_parse.Append(data)
-
-            gui.frame_parse.SetTitle(videoname)
-
+        gui.frame_parse.button_parse.Enable(False)
+        threading.Thread(target=__parse__).start()
 
 
     @staticmethod
@@ -103,18 +111,26 @@ class FrameParse_Button_Handler:
 
     @staticmethod
     def copyurl(event):
-        sel_bid = int(gui.frame_parse.listctrl_parse.GetItemText(gui.frame_parse.listctrl_parse.GetFirstSelected(), 0))
-        _, res = iqiyi.getLastRes()
-        urls = []
-        for i in res[sel_bid]['fs']:
-            _url, _ = iqiyi.activatePath(i['l'])
-            urls.append(_url)
 
-        text = str('\n'.join(urls))
-        # print(text)
-        pyperclip.copy(text)
+        index = int(gui.frame_parse.listctrl_parse.GetFirstSelected())
+        if index != -1:
+            res = iqiyi.getLastRespond()
 
-        dlg = wx.MessageDialog(gui.frame_parse, u'下载地址已写入到剪切板！', u'完成', wx.OK | wx.ICON_INFORMATION)
-        dlg.ShowModal()
+            sel_res = res[index]
+
+            if sel_res.getM3U8():
+                dlg = wx.MessageDialog(gui.frame_parse,
+                                       u'该视频提供了M3U8，是否复制M3U8到剪切板？\n选【No】将复制所有片段的下载地址。', u'提示',
+                                       wx.YES_NO | wx.ICON_QUESTION)
+                msg = dlg.ShowModal()
+                if msg == wx.ID_YES:
+                    cpy_url = str(sel_res.getM3U8())
+                else:
+                    cpy_url = str('\n'.join(sel_res.getVideosFullUrl()))
+
+                pyperclip.copy(cpy_url)
+
+                dlg = wx.MessageDialog(gui.frame_parse, u'写入到剪切板成功！', u'完成', wx.OK | wx.ICON_INFORMATION)
+                dlg.ShowModal()
 
 

@@ -191,7 +191,7 @@ class Processor(object):
             elif status == 404:
                 self.__404__(sock)
                 return
-            elif status != 206:
+            elif status != 206 and status != 200:
                 self.__404__(sock)
                 return
 
