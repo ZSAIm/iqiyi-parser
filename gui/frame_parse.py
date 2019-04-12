@@ -5,7 +5,7 @@ from gui.listctrl import ListCtrl_Parser
 
 class DialogParser(wx.Dialog):
     def __init__(self, parent, *args):
-        wx.Dialog.__init__(self, parent, id=wx.ID_ANY, title=wx.EmptyString, pos=wx.DefaultPosition,
+        wx.Dialog.__init__(self, parent, id=wx.ID_ANY, title=u'IQIYI视频解析器', pos=wx.DefaultPosition,
                            size=wx.Size(400, 400), style=wx.DEFAULT_DIALOG_STYLE)
 
         text_resolution = wx.StaticText(self, wx.ID_ANY, u"清晰度：", wx.DefaultPosition, wx.DefaultSize, 0)
@@ -63,7 +63,7 @@ class DialogParser(wx.Dialog):
 
         self.button_copyurl = wx.Button(self, wx.ID_ANY, u"复制下载链接", wx.DefaultPosition, wx.DefaultSize, 0)
         self.button_godownload = wx.Button(self, wx.ID_ANY, u"下载选中项", wx.DefaultPosition, wx.DefaultSize, 0)
-
+        # self.button_godownload.Enable(False)
         sizer_control = wx.BoxSizer(wx.HORIZONTAL)
         sizer_control.Add(self.button_copyurl, 0, wx.ALL, 5)
         sizer_control.Add(self.button_godownload, 1, wx.ALIGN_RIGHT | wx.ALL, 5)

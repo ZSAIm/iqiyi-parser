@@ -5,11 +5,15 @@ if sys.version_info >= (3, 0):
     import http.cookiejar as cookiejar
     import urllib.parse as urllib_parse
     import urllib.request as urllib_request
+    import urllib.error as urllib_error
+
+    urllib_error_URLError = urllib_error.UrlError
 
 if sys.version_info < (3, 0):
     import cookielib as cookiejar
     import urllib as urllib_parse
     import urllib2 as urllib_request
+    urllib_error_URLError = urllib_request.URLError
 
 from wsgiref.headers import Headers
 import re,time
@@ -55,7 +59,7 @@ HEADERS_CHROME = Headers([
 ])
 
 class UrlPool(Packer, object):
-    def __init__(self, parent, max_conn=DEFAULT_MAX_CONNECTIONS, max_speed=-1):
+    def __init__(self, parent, max_retry=-1, max_conn=DEFAULT_MAX_CONNECTIONS, max_speed=-1):
         self.parent = parent
         self.list = []
         self.dict = {}
@@ -65,37 +69,43 @@ class UrlPool(Packer, object):
         self.max_conn = max_conn
         self.max_speed = max_speed
 
+        self.max_retry = max_retry
+
     def reloadBadUrl(self):
         for i in self.list:
             if not i.target.headers:
                 i.activate()
 
-
     def addNode(self, id=-1, url='', cookie='', headers=HEADERS_CHROME,
             host=None, port=None, path=None, protocol=None,
             proxy=None, max_thread=-1):
 
-        if id == -1 or id == None:
+        if id == -1 or id is None:
             id = self.newID()
 
         urlobj = Url(id, url, cookie, headers, host, port, path, protocol, proxy, max_thread)
-        try:
-            urlobj.activate()
-        except Exception:
-            try:
-                urlobj.activate()
-            except Exception:
+        self.list.append(urlobj)
+        self.dict[id] = urlobj
+
+        retry_counter = self.max_retry
+        while True:
+            if self.max_retry == -1 or retry_counter > 0:
                 try:
                     urlobj.activate()
-                except Exception:
-                    print('error '*4)
-                    return False
-
-        else:
-            self.list.append(urlobj)
-            self.dict[id] = urlobj
-            self.id_map[id] = True
-            return True
+                except:
+                    if retry_counter != -1:
+                        retry_counter -= 1
+                        if self.parent.shutdown_flag:
+                            break
+                        continue
+                    if self.parent.file.size != -1:
+                        break
+                else:
+                    self.id_map[id] = True
+                    self.parent.file.updateFromUrl(urlobj)
+                    break
+            else:
+                raise Exception('MaxRetryExceed', 'UrlNotRespond')
 
 
     def getNextId(self, cur_id):
@@ -148,19 +158,8 @@ class UrlPool(Packer, object):
 
         return True
 
-    def getFileSize(self):
-        # if not self.matchSize():
-        #     raise Exception('FileSizeNoMatch')
-        if self.parent.file.size != -1:
-            return self.parent.file.size
-
-        if not self.list[0].target.headers:
-            return -1
-
-        content_length = int(self.list[0].target.headers.get('Content-Length', -1))
-
-        return content_length
-
+    def getContentSize(self):
+        return int(self.list[0].getContentSize()) if self.list else -1
 
     def getFileName(self, index=0):
         if not self.list:
@@ -231,10 +230,12 @@ class Target(object):
             self.headers = Headers(headers)
 
 
+
 class Url(Packer, object):
     def __init__(self, id, url, cookie='', headers=HEADERS_CHROME,
                  host=None, port=None, path=None, protocol=None,
                  proxy=None, max_thread=-1):
+
 
         self.id = id
 
@@ -254,6 +255,9 @@ class Url(Packer, object):
         self.target = Target()
 
         self.max_thread = max_thread
+
+    def getContentSize(self):
+        return int(self.target.headers.get('Content-Length', -1)) if self.target.headers else -1
 
 
     def reload(self):
@@ -297,13 +301,13 @@ class Url(Packer, object):
             _header.update({'Cookie': self.cookie})
         req = urllib_request.Request(self.url, headers=_header, origin_req_host=self.host)
         error_counter = 0
-        while error_counter < 5:
+        while error_counter < 3:
             try:
                 res = opener.open(req)
                 break
             except:
                 error_counter += 1
-            time.sleep(1)
+            time.sleep(0.5)
         else:
             # return None, None
             raise Exception('UrlNotRespond')
@@ -333,7 +337,6 @@ class File(Packer, object):
 
         self.size = size
 
-        # self.fp = FileStorage()
         self.BLOCK_SIZE = block_size
 
         self.buffer_size = 20 * 1024 * 1024
@@ -343,21 +346,18 @@ class File(Packer, object):
         if key == 'name':
             self.extension = self.name[self.name.rindex('.'):] if '.' in self.name else ''
 
-
     def makeFile(self, withdir=True):
-        # self.name = self.checkName()
-        if self.size == -1:
-            while self.size == -1:
-                time.sleep(0.01)
-            # if self.size == -1:
-                self.parent.url.reloadBadUrl()
-                if self.parent.shutdown_flag:
+        thrs = self.parent.thrpool.getThreadsFromName('AddNode')
+        if len(thrs) == 1 and self.size == -1:
+            thrs[0].join()
+        else:
+            while len(self.parent.thrpool.getThreadsFromName('AddNode')):
+                if self.size != -1:
                     break
-
-            # if self.size == -1:
-            #     self.parent.url.reloadBadUrl()
-            # # if self.size == -1:
-            #     self.parent.url.reloadBadUrl()
+                time.sleep(0.01)
+            else:
+                if self.size == -1:
+                    return
 
         if self.size == -1:
             raise Exception('UrlTimeout.')
@@ -394,6 +394,13 @@ class File(Packer, object):
         # self.fp.close()
         pass
 
+
+    def updateFromUrl(self, Url):
+        if self.size == -1:
+            self.size = Url.getContentSize()
+        if not self.name:
+            self.name = Url.getFileName()
+            self.name = self.checkName()
 
 
 

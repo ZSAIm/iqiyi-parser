@@ -4,6 +4,7 @@ from DLInfos import *
 from DLProgress import *
 from packer import Packer
 import time, os
+from DLThreadPool import ThreadPool
 
 
 LOG_FORMAT = "%(asctime)s,%(msecs)03d - %(levelname)s - %(threadName)-12s - (%(progress)s)[%(urlid)s] - %(message)s"
@@ -29,14 +30,16 @@ class Handler(Packer, object):
         self.url = UrlPool(self)
         self.file = File(self)
 
+        self.thrpool = ThreadPool()
+
         self.__globalprog__ = GlobalProgress(self, AUTO)
 
         self.__new_project__ = True
-        self.__batch_thread__ = None
 
         self.globalprog = self.__globalprog__
 
         self.shutdown_flag = False
+
 
     def uninstall(self):
         self.globalprog = self.__globalprog__
@@ -48,7 +51,7 @@ class Handler(Packer, object):
         for iter_kw in pack_yield:
             self.addNode(**iter_kw)
 
-    def batchAdd(self, wait=True, **kwargs):
+    def batchAdd(self, **kwargs):
         global __URL_NODE_PARAMS__
 
         pack_yield = []
@@ -66,24 +69,12 @@ class Handler(Packer, object):
 
             pack_yield.append(node)
 
-        if wait is False:
-            self.__batch_thread__ = threading.Thread(target=self.__batchAdd__, args=(pack_yield, ))
-            self.__batch_thread__.start()
-        else:
-            self.__batchAdd__(pack_yield)
+        self.thrpool.Thread(target=self.__batchAdd__, args=(pack_yield,), name='AddNode').start()
+
 
     def addNode(self, *args, **kwargs):
         self.url.addNode(*args, **kwargs)
 
-        if self.file.size == -1:
-            self.file.size = self.url.getFileSize()
-        if not self.file.name:
-            self.file.name = self.url.getFileName()
-
-            if not self.file.name:
-
-                self.file = File(name=self.file.name, path=self.file.path,
-                                 size=self.url.getFileSize(), block_size=self.file.BLOCK_SIZE)
 
     def delete(self, url=None, urlid=None):
         if urlid:
@@ -110,43 +101,9 @@ class Handler(Packer, object):
         self.globalprog.run()
 
 
-    def getFileName(self):
-        return self.file.name if self.file.name else None
-
-    def getFileSize(self):
-        return self.url.getFileSize()
-
-    def getUrls(self):
-        return self.url.dict
-
-    def getInsSpeed(self, update=True):
-        return self.globalprog.getInsSpeed(update)
-
-    def getAvgSpeed(self):
-        return self.globalprog.getAvgSpeed()
-
-    def getLeft(self):
-        return self.globalprog.getLeft()
-
-    def getOnlines(self):
-        return self.globalprog.getOnlines()
-
-    def getConnections(self):
-        return self.globalprog.getConnections()
-
-    def getBlockMap(self):
-        return self.globalprog.getMap()
-
-
-    def getSegsValue(self):
-        return self.globalprog.fs.getvalue()
-
-    def getSegsSize(self):
-        return self.globalprog.fs.getStorageSize()
-
-
-    def getUrlsThread(self):
-        return self.globalprog.allotter.getUrlsThread()
+    def join(self):
+        while not self.thrpool.isAllDead():
+            time.sleep(0.01)
 
     def __config_params__(self):
         return {'filename': 'file.name',
@@ -260,14 +217,18 @@ class Handler(Packer, object):
 
         return sample_type
 
-
-    def run(self):
+    def __run__(self):
         if self.__new_project__:
             self.file.makeFile()
+            if self.file.size == -1:
+                return
             self.globalprog.allotter.makeBaseConn()
             self.globalprog.save()
 
         self.globalprog.run()
+
+    def run(self):
+        self.thrpool.Thread(target=self.__run__).start()
 
     def pause(self):
         self.globalprog.pause()
@@ -279,8 +240,54 @@ class Handler(Packer, object):
         Packer.unpack(self, packet)
         self.__new_project__ = False
 
+    def shutdown(self):
+        if not self.isEnd():
+            self.shutdown_flag = True
+            self.globalprog.shutdown()
+            self.shutdown_flag = False
+
 
     def __packet_params__(self):
         return ['url', 'file', '__auto_global__']
 
 
+    def getFileName(self):
+        return self.file.name if self.file.name else None
+
+    def getFileSize(self):
+        return self.file.size
+
+    def getUrls(self):
+        return self.url.dict
+
+    def getInsSpeed(self, update=True):
+        return self.globalprog.getInsSpeed(update)
+
+    def getAvgSpeed(self):
+        return self.globalprog.getAvgSpeed()
+
+    def getLeft(self):
+        return self.globalprog.getLeft()
+
+    def getIncByte(self):
+        return self.getFileSize() - self.getLeft() if self.getFileSize() != -1 else 0
+
+    def getOnlines(self):
+        return self.globalprog.getOnlines()
+
+    def getConnections(self):
+        return self.globalprog.getConnections()
+
+    def getBlockMap(self):
+        return self.globalprog.getMap()
+
+
+    def getSegsValue(self):
+        return self.globalprog.fs.getvalue()
+
+    def getSegsSize(self):
+        return self.globalprog.fs.getStorageSize()
+
+
+    def getUrlsThread(self):
+        return self.globalprog.allotter.getUrlsThread()

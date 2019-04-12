@@ -36,7 +36,7 @@ class ItemBoxSizer(wx.BoxSizer):
 
         name = kwargs.get('name', '')
         current = kwargs.get('current', 0)
-        percent = current*100.0 / self.total
+        percent = current*100.0 / self.total if self.total > 0 else 0
         speed = format_byte(kwargs.get('speed', 0), '%.1f%s/S')
 
         self.text_name = wx.StaticText(self.parent, wx.ID_ANY, name, wx.DefaultPosition, wx.Size(20, -1),
@@ -65,9 +65,9 @@ class ItemBoxSizer(wx.BoxSizer):
         self.Add(staticline1, 0, wx.EXPAND | wx.ALL, 2)
 
     def update(self, current_byte, speed_byte, totol_byte):
-        self.total = totol_byte
-        percent = current_byte * 100.0 / self.total
-        speed = format_byte(speed_byte, '%.1f%s/s')
+        self.total = totol_byte if totol_byte > 0 else 0
+        percent = current_byte * 100.0 / self.total if self.total > 0 else 0
+        speed = format_byte(speed_byte if speed_byte > 0 else 0, '%.1f%s/s')
         self.text_percent.SetLabelText(str(round(percent, 1)) + '%')
 
         self.text_speed.SetLabelText(speed)

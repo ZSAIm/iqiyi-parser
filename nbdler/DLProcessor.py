@@ -79,18 +79,19 @@ class Processor(object):
         self.buff = []
         self.buff_inc = 0
         self.opareq = OpaReq()
-        self.__opa_lock__ = threading.Lock()
 
         self.target = Target()
 
         self.__thread__ = None
 
+        self.__opa_lock__ = threading.Lock()
         self.__run_lock__ = threading.Lock()
-        self.__buff__lock__ = threading.Lock()
+        self.__buff_lock__ = threading.Lock()
 
         self.error_counter = ErrorCounter()
 
-        self.cur_thread = None
+    def _Thread(self, *args, **kwargs):
+        return self.getHandler().thrpool.Thread(*args, **kwargs)
 
     def loadUrl(self, Urlid):
 
@@ -118,7 +119,6 @@ class Processor(object):
 
     def isGoEnd(self):
         return self.progress.isGoEnd()
-
 
     def getHandler(self):
         return self.progress.globalprog.handler
@@ -156,9 +156,9 @@ class Processor(object):
     def run(self):
         with self.__run_lock__:
             if self.selfCheck():
-                thr = threading.Thread(target=self.__getdata__, name='Processor')
-                thr.start()
+                thr = self._Thread(target=self.__getdata__, name='Nbdler-Processor')
                 self.__thread__ = thr
+                thr.start()
 
     def __getdata__(self):
         if self.opareq.cut:
@@ -171,10 +171,10 @@ class Processor(object):
         sock, buff = self.makeSocket()
 
         if not sock:
-            msg = 'SocketNotBuilt: ->rerun.'
-            extra = {'progress': '%-10d-%10d' % (self.progress.begin, self.progress.end),
-                     'urlid': self.urlid}
-            logger.warning(msg, extra=extra)
+            # msg = 'SocketNotBuilt: ->rerun.'
+            # extra = {'progress': '%-10d-%10d' % (self.progress.begin, self.progress.end),
+            #          'urlid': self.urlid}
+            # logger.warning(msg, extra=extra)
 
             self.error_counter.socket_error += 1
             time.sleep(2)
@@ -185,32 +185,23 @@ class Processor(object):
             status, _headers = parse_headers(buff[:(buff.index(b'\r\n\r\n'))])
             self.target.update(headers=_headers)
 
-            if status == 302:
+            if status == 200:
+                self.__200__(sock, buff)
+            elif status == 206:
+                self.__206__(sock, buff)
+            elif status == 302:
                 self.__302__(sock)
-                return
             elif status == 404:
                 self.__404__(sock)
-                return
             elif status != 206 and status != 200:
                 self.__404__(sock)
-                return
 
-            self.error_counter.clear()
-
-            buff = buff[(buff.index(b'\r\n\r\n') + 4):]
-
-            if self.progress.length < len(buff):
-                print(self.progress.end - self.progress.begin, len(buff))
-                return
-
-            self.progress.go(len(buff))
-            self.__recv_loop__(sock, buff)
             try:
                 sock.shutdown(socket.SHUT_RDWR)
                 sock.close()
-            except socket.error as err:
-                # print(err, '-----------------------')
+            except socket.error:
                 pass
+
 
     def makeSocket(self):
         sock = None
@@ -248,7 +239,8 @@ class Processor(object):
             packet = packet % pack_format
             sock.send(str.encode(str(packet)))
             buff = sock.recv(1024)
-        except:
+        except Exception as e:
+            # print(e.args)
             self.error_counter.socket_error += 1
             sock = None
         else:
@@ -270,21 +262,30 @@ class Processor(object):
     def __302__(self, sock):
         if self.target.headers.get('location', None):
             self.target.load(self.target.headers.get('location'))
-        sock.shutdown(socket.SHUT_RDWR)
-        sock.close()
+
         self.run()
+
+    def __206__(self, sock, buff):
+        self.__200__(sock, buff)
+
+    def __200__(self, sock, buff):
+        self.error_counter.clear()
+
+        buff = buff[(buff.index(b'\r\n\r\n') + 4):]
+
+        self.progress.go(len(buff))
+        self.__recv_loop__(sock, buff)
+
 
     def __404__(self, sock):
         self.error_counter._404_ += 1
 
         self.url.reload()
 
-        sock.shutdown(socket.SHUT_RDWR)
-        sock.close()
-
         time.sleep(2)
-
         self.run()
+
+
 
     def __recv_loop__(self, sock, buff):
         while True:
@@ -342,10 +343,10 @@ class Processor(object):
     def close(self):
         self.progress.globalprog.checkAllGoEnd()
         self.opareq.clear()
-        msg = 'Close: '
-        extra = {'progress': '%-10d-%10d' % (self.progress.begin, self.progress.end),
-                 'urlid': self.urlid}
-        logger.info(msg, extra=extra)
+        # msg = 'Close: '
+        # extra = {'progress': '%-10d-%10d' % (self.progress.begin, self.progress.end),
+        #          'urlid': self.urlid}
+        # logger.info(msg, extra=extra)
 
     def pause(self):
         self.opareq.pause = True
@@ -366,7 +367,7 @@ class Processor(object):
         self.error_counter.clear()
 
     def buffer(self, buff):
-        with self.__buff__lock__:
+        with self.__buff_lock__:
             self.buff.append(buff)
             self.buff_inc += len(buff)
 
@@ -377,7 +378,7 @@ class Processor(object):
         self.buff_inc = 0
 
     def releaseBuffer(self, f):
-        with self.__buff__lock__:
+        with self.__buff_lock__:
             f.seek(self.progress.begin + self.progress.done_inc)
             total_buff = 0
             for block in self.buff:
@@ -394,13 +395,14 @@ class Processor(object):
 
         self.opareq.cut = [Range[0], Range[1]]
 
-        msg = 'CutRequest: %010d-%010d' % (Range[0], Range[1])
-        extra = {'progress': '%-10d-%10d' % (self.progress.begin, self.progress.end),
-                 'urlid': self.urlid}
-        logger.info(msg, extra=extra)
-
+        # msg = 'CutRequest: %010d-%010d' % (Range[0], Range[1])
+        # extra = {'progress': '%-10d-%10d' % (self.progress.begin, self.progress.end),
+        #          'urlid': self.urlid}
+        # logger.info(msg, extra=extra)
         while True:
-            if not self.isReady() or not self.opareq.cut:
+            if (self.isReady() and not self.isRunning() and
+                    not self.getHandler().thrpool.getThreadsFromName('SelfCheck')) or \
+                    not self.opareq.cut:
                 break
             time.sleep(0.1)
 
@@ -419,10 +421,10 @@ class Processor(object):
         if retrange:
             self.progress.globalprog.cut(self.progress, retrange)
 
-        msg = 'GetCut: %010d-%010d' % (self.opareq.cut[0], self.opareq.cut[1])
-        extra = {'progress': '%-10d-%10d' % (self.progress.begin, self.progress.end),
-                 'urlid': self.urlid}
-        logger.info(msg, extra=extra)
+        # msg = 'GetCut: %010d-%010d' % (self.opareq.cut[0], self.opareq.cut[1])
+        # extra = {'progress': '%-10d-%10d' % (self.progress.begin, self.progress.end),
+        #          'urlid': self.urlid}
+        # logger.info(msg, extra=extra)
 
         self.opareq.cut = []
 

@@ -43,7 +43,7 @@ class TimeStatus(Packer, object):
         self.pauseflag = True
         if self.go_startTime:
             self.go_pauseTime = time.time()
-            self.go_lastTime += self.go_pauseTime - self.go_startTime
+            self.go_lastTime += self.go_pauseTime - self.go_startTime if self.go_startTime else 0
             self.go_startTime = None
 
         if self.done_startTime:
@@ -210,7 +210,7 @@ class Piece(object):
 
     def pause(self):
         if self.last_clock:
-            self.last_time += time.time() - self.start_clock
+            self.last_time += time.time() - self.start_clock if self.start_clock else 0
             self.start_clock = None
             self.last_clock = None
 
@@ -247,12 +247,16 @@ class GlobalProgress(Packer, object):
         self.__buff_lock__ = threading.Lock()
         self.__buff_counter__ = 0
         self.__progresses_lock__ = threading.Lock()
-        self.__release_thread__ = None
+        # self.__release_thread__ = None
         self.__insspeed_lock__ = threading.Lock()
 
         self.pause_req = False
 
         self.__mode__ = mode
+
+    def _Thread(self, *args, **kwargs):
+        return self.handler.thrpool.Thread(*args, **kwargs)
+
 
     def insert(self, Urlid, begin, end):
         with self.__progresses_lock__:
@@ -320,18 +324,25 @@ class GlobalProgress(Packer, object):
 
         return False
 
+    def join(self):
+        while not self.handler.thrpool.isAllDead():
+            time.sleep(0.01)
+
+
     def pause(self):
 
         self.pause_req = True
-        while self.inspector.__selfcheck_thread__.isAlive():
-            time.sleep(0.01)
-            break
-        while True:
-            if self.isAllPause():
-                break
-            if self.isEnd():
-                break
-            time.sleep(0.01)
+        for i in self.handler.thrpool.getThreadsFromName('AddNode'):
+            i.join()
+
+        for i in self.handler.thrpool.getThreadsFromName('Allotter'):
+            i.join()
+
+        for i in self.handler.thrpool.getThreadsFromName('SelfCheck'):
+            i.join()
+
+        self.makePause()
+        self.join()
 
         self.piece.pause()
         self.status.pause()
@@ -373,6 +384,12 @@ class GlobalProgress(Packer, object):
 
         self.run()
 
+    def shutdown(self):
+        if self.handler.file.size == -1:
+            return
+        self.pause()
+        self.join()
+
     def isEnd(self):
 
         return self.status.endflag and not self.__buff_lock__.locked()
@@ -386,7 +403,7 @@ class GlobalProgress(Packer, object):
             for i in self.progresses.values():
                 gobyte += i.go_inc
 
-        return self.handler.file.size - gobyte
+        return self.handler.file.size - gobyte if self.handler.file.size != -1 else 0
 
     def getAvgSpeed(self):
         if self.status.go_startTime is not None and not self.status.endflag:
@@ -420,7 +437,7 @@ class GlobalProgress(Packer, object):
                 self.piece.last_left = curleft
                 self.piece.last_clock = curclock
 
-        return incbyte * 1.0 / incclock if incclock else 0
+        return incbyte * 1.0 / incclock if incclock > 0 else 0
 
     def close(self):
         self.releaseBuffer()
@@ -472,17 +489,17 @@ class GlobalProgress(Packer, object):
 
             self.save()
 
-            self.__release_thread__ = None
+            # self.__release_thread__ = None
 
 
     def checkBuffer(self, bytelen):
         self.__buff_counter__ += bytelen
 
         if self.__buff_counter__ >= self.handler.file.buffer_size:
-            # if self.__release_thread__:
             self.__buff_counter__ = 0
-            self.__release_thread__ = threading.Thread(target=self.releaseBuffer, name='ReleaseBuffer')
-            self.__release_thread__.start()
+            self._Thread(target=self.releaseBuffer, name='ReleaseBuffer').start()
+            # self.__release_thread__ = self._Thread(target=self.releaseBuffer, name='ReleaseBuffer')
+            # self.__release_thread__.start()
 
     def save(self):
         if not self.__packet_frame__:

@@ -18,7 +18,8 @@ class FrameMain(wx.Frame):
 
         self.SetSizeHints(wx.DefaultSize, wx.DefaultSize)
         self.SetBackgroundColour(wx.Colour(240, 240, 240))
-
+        self.SetMinSize(wx.Size(390, 420))
+        self.SetMaxSize(wx.Size(390, 420))
         self.global_sizer = wx.BoxSizer(wx.VERTICAL)
 
         self.sizer_items = wx.BoxSizer(wx.VERTICAL)
@@ -72,12 +73,12 @@ class FrameMain(wx.Frame):
 
 
     def initTotal(self, total):
-        self.total = total
+        self.total = total if total > 0 else 0
         self.gauge_total = wx.Gauge(self, wx.ID_ANY, 10000, wx.DefaultPosition, wx.DefaultSize,
                                        wx.GA_HORIZONTAL)
         self.gauge_total.SetValue(0)
         self.text_percent = wx.StaticText(self, wx.ID_ANY, '0%', wx.DefaultPosition,
-                                          wx.Size(35, -1), wx.ALIGN_RIGHT)
+                                          wx.Size(42, -1), wx.ALIGN_RIGHT)
         self.text_speed = wx.StaticText(self, wx.ID_ANY, '0B/s', wx.DefaultPosition, wx.Size(65, -1),
                                         wx.ALIGN_RIGHT)
 
@@ -90,8 +91,8 @@ class FrameMain(wx.Frame):
 
     def updateTotal(self, current_byte, speed_byte):
         percent = current_byte * 100.0 / self.total
-        progress = '[ %s/%s ]' % (format_byte(current_byte, '%.1f%s'), format_byte(self.total, '%.1f%s'))
-        speed = format_byte(speed_byte, '%.1f%s/s')
+        progress = '[ %s/%s ]' % (format_byte(current_byte if current_byte > 0 else 0, '%.1f%s'), format_byte(self.total, '%.1f%s'))
+        speed = format_byte(speed_byte if speed_byte > 0 else 0, '%.1f%s/s')
         self.text_percent.SetLabelText(str(round(percent, 1)) + '%')
         self.text_speed.SetLabelText(speed)
 
@@ -117,7 +118,6 @@ class FrameMain(wx.Frame):
         self.text_speed.SetLabelText(progress)
         self.sizer_total.Layout()
 
-
     def insertItem(self, id, total_byte, cur_byte=0, speed_byte=0):
         item = ItemBoxSizer(self, cur_byte, total_byte, name=str(id), speed=speed_byte)
         self.items_list.append(item)
@@ -140,6 +140,7 @@ class FrameMain(wx.Frame):
         self.block_list.append(block)
         self.sizer_blocks.Add(block, 0, wx.ALL, 5)
         self.sizer_items.Layout()
+        self.Layout()
 
     def updateBlock(self, id, type):
         if type == COLOR_NORMAL:

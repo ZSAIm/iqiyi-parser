@@ -23,14 +23,17 @@ class Inspector(object):
     def install(self, Allotter):
         self.allotter = Allotter
 
+    def _Thread(self, *args, **kwargs):
+        return self.handler.thrpool.Thread(*args, **kwargs)
+
     def runAllotter(self):
         if not self.__allotter_thread__ or not self.__allotter_thread__.isAlive():
-            self.__allotter_thread__ = threading.Thread(target=self.__allotter__, name='Allotter')
+            self.__allotter_thread__ = self._Thread(target=self.__allotter__, name='Allotter')
             self.__allotter_thread__.start()
 
     def runSelfCheck(self):
         if not self.__selfcheck_thread__ or not self.__selfcheck_thread__.isAlive():
-            self.__selfcheck_thread__ = threading.Thread(target=self.__selfcheck__, name='SelfCheck')
+            self.__selfcheck_thread__ = self._Thread(target=self.__selfcheck__, name='SelfCheck')
             self.__selfcheck_thread__.start()
 
     # def runLimiter(self):
@@ -75,7 +78,7 @@ class Inspector(object):
                             # extra = {'progress': '%010s-%010s' % ('..........', '..........'), 'urlid': '.'}
                             # logger.info(msg, extra=extra)
                             progress.run()
-            time.sleep(3)
+            time.sleep(2)
 
     # def __limiter__(self):
     #     while True:

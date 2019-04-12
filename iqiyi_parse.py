@@ -12,7 +12,7 @@ from BeautifulSoup import BeautifulSoup
 # import PyV8
 import ssl
 
-import JSExecutor
+import PyJSCaller
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
@@ -146,31 +146,42 @@ class Iqiyi:
     def makeTargetUrl(self, tvid, vid, bid):
 
         time_str = str(int(time.time() * 1000))
+        # start = time.clock()
+        with PyJSCaller.Sesson('pcweb.js') as sess:
+            authkey, callback, require, cmd5x = sess.require('authkey', 'callback', 'require', 'cmd5x')
 
-        authkey = JSExecutor.call('authkey', JSExecutor.call('authkey', '') + time_str + tvid)
-        callback = JSExecutor.call('callback')
+            # auk = authkey(authkey('') + time_str + tvid)
+            # calb = callback()
 
-        params = {
-            'tvid': tvid,
-            'vid': vid,
-            'bid': str(bid),
-            'tm': time_str,
-            'k_uid': self.user.k_uid,
-            'callback': callback,
-            'authKey': authkey,
-        }
-        new_params = global_params.copy()
-        new_params.update(params)
+            params = {
+                'tvid': tvid,
+                'vid': vid,
+                'bid': str(bid),
+                'tm': time_str,
+                'k_uid': self.user.k_uid,
+                'callback': callback(),
+                'authKey': authkey(authkey('') + time_str + tvid),
+            }
 
+            new_params = global_params.copy()
+            new_params.update(params)
 
-        params_encode = urllib.urlencode(new_params)
+            querystring = require('querystring')
+            querystring.require('stringify')
+            params_encode = querystring.stringify(new_params)
 
-        req_path = '/jp/dash?' + params_encode
-        vf = JSExecutor.call('cmd5x', req_path)
+            params_encode.operands.args[0].getExprText()
 
-        req_path += '&vf=%s' % vf
+            req_path = '/jp/dash?' + params_encode
 
-        return 'http://cache.video.iqiyi.com/' + req_path.lstrip('/')
+            # vf = cmd5x(req_path)
+
+            req_path += '&vf=' + cmd5x(req_path)
+            sess.call(req_path)
+
+        # print(time.clock() - start)
+        return 'http://cache.video.iqiyi.com/' + req_path.getRespond().lstrip('/')
+
 
     def getTargetJson(self, req_url):
 
@@ -201,13 +212,17 @@ class IqiyiUser:
         QC005 = re.compile('QC005=([a-z|A-Z|0-9]*);')
 
         P00002 = re.compile('P00002=({.+?});')
-        P00002_json = json.loads(P00002.search(decode_cookie).group(1))
+        res_P00002 = P00002.search(decode_cookie)
+        P00002_json = json.loads(res_P00002.group(1)) if res_P00002 else {}
 
-        self.dfp = __dfp.search(decode_cookie).group(1)
-        self.pck = P00001.search(decode_cookie).group(1)
+        res_dfp = __dfp.search(decode_cookie)
+        res_P00001 = P00001.search(decode_cookie)
+        res_k_uid = QC005.search(decode_cookie)
+
+        self.dfp = res_dfp.group(1) if res_dfp else ''
+        self.pck = res_P00001.group(1) if res_P00001 else ''
         self.uid = P00002_json.get('uid', '')
-        self.k_uid = QC005.search(decode_cookie).group(1)
-
+        self.k_uid = res_k_uid.group(1) if res_k_uid else ''
 
 
 class IqiyiRespond:
@@ -248,7 +263,15 @@ class IqiyiRespond:
         return self.sel_video.get('m3u8')
 
     def getBossMsg(self):
-        return self.full_json['data'].get('boss_ts', {}).get('msg', '')
+        boss_ts = self.full_json['data'].get('boss_ts')
+        boss = self.full_json['data'].get('boss')
+
+        if boss_ts:
+            return boss_ts.get('msg', '')
+        if boss:
+            return boss.get('msg', '')
+        return ''
+        # return self.full_json['data'].get('boss_ts', {}).get('msg', '')
 
     def getSelBid(self):
         return self.sel_video['bid']
@@ -288,9 +311,9 @@ class IqiyiRespond:
         if m3u8:
             self.video_urls = self.__extract_m3u8__(self.getM3U8())
         else:
-            for i in self.getSelfs():
-                res = self.makeDispatchUrl(i['l'])
-                self.video_urls.append(res['l'])
+            # for i in self.getSelfs():
+            res = self.makeDispatchUrls(self.getSelfs())
+            self.video_urls = [i['l'] for i in res]
 
     def __extract_m3u8__(self, m3u8):
         if m3u8:
@@ -346,60 +369,80 @@ class IqiyiRespond:
     def getVideoLanguage(self):
         return self.sel_video['name']
 
-    def makeDispatchUrl(self, path):
+    def makeDispatchUrls(self, fs):
+        rex_filename = re.compile('/([a-z|A-Z|0-9]+)\.([A-Z|a-z|0-9]+)\?')
+        paths = []
+        filenames = []
+        t_s = []
 
         boss = self.getBoss()
-        rex_filename = re.compile('/([a-z|A-Z|0-9]+)\.([A-Z|a-z|0-9]+)\?')
-        filename = rex_filename.search(path).group(1)
-
-        qyid = self.parent.user.k_uid
-        qypid = '%s__02020031010000000000' % self.getTvid()
-        t = str(boss.get('data', {}).get('t', '')) if boss else ''
+        albumid = self.getAlbumID()
+        tvid = self.getTvid()
         vid = self.getVid()
+        qyid = self.parent.user.k_uid
+        qypid = '%s__02020031010000000000' % tvid
 
-        ibt = JSExecutor.call('cmd5x', t + filename)
-        # return t.data && t.data.prv && 1 == t.data.prv && 1 == t.previewType && (i = 60 * t.previewTime * 1e3), i
-        if boss and boss.get('data', {}).get('prv') == 1 and boss['previewTime'] == 1:
-            ptime = int(60 * 1 * 1e3)
-        else:
-            ptime = 0
+        for i, j in enumerate(fs):
+            paths.append(j['l'])
+            filenames.append(rex_filename.search(paths[i]).group(1))
+            t_s.append(str(boss.get('data', {}).get('t', '')) if boss else '')
 
-        QY00001 = boss.get('data', {}).get('u', '') if boss else ''
+        ibts_tmp = []
+        with PyJSCaller.Sesson('pcweb.js') as sess:
+            cmd5x = sess.require('cmd5x')
+            # cmd5x = sess.getMethod('cmd5x')
+            for i in range(len(fs)):
+                ibt = cmd5x(str(t_s[i] + filenames[i]))
+                ibts_tmp.append(ibt)
+                sess.call(ibt)
 
-        params = {
-            'cross-domain': '1',
-            'qyid': qyid,
-            'qypid': qypid,
-            't': t,
-            'cid': 'afbe8fd3d73448c9',
-            'vid': vid,
-            'QY00001': QY00001,
-            'ibt': ibt,
-            'ib': '4',
-            'ptime': ptime,                             # pcweb.js: getPreviewTime: function(e)
-            'su': qyid,
-            'client': '',                               # pcweb.js: e.currentUserIP
-            'z': '',                                    # pcweb.js: e.preDispatchArea
-            'bt': '',                                   # pcweb.js: e.preDefinition
-            'ct': '5',                                  # pcweb.js: e.currentDefinition
-                                                        # pcweb.js: mi: "tv_" + t.albumId + "_" + t.tvid + "_" + t.vid,
-            'mi': 'tv_%s_%s_%s' % (self.getAlbumID(), self.getTvid(), self.getVid()),
-            'e': '',
-            'pv': '0.1',
-            'tn': str(random.random()),
+        ibts = [i.getRespond() for i in ibts_tmp]
+        all_res = []
+        for i in range(len(fs)):
+            if boss and boss.get('data', {}).get('prv') == 1 and boss['previewTime'] == 1:
+                ptime = int(60*1*1e3)
+            else:
+                ptime = 0
 
-        }
-        path, query = urllib.splitquery(path)
-        params.update(extract_query(query))
+            QY00001 = boss.get('data', {}).get('u', '') if boss else ''
 
-        encode_params = urllib.urlencode(params)
+            params = {
+                'cross-domain': '1',
+                'qyid': qyid,
+                'qypid': qypid,
+                't': t_s[i],
+                'cid': 'afbe8fd3d73448c9',
+                'vid': vid,
+                'QY00001': QY00001,
+                'ibt': ibts[i],
+                'ib': '4',
+                'ptime': ptime,  # pcweb.js: getPreviewTime: function(e)
+                'su': qyid,
+                'client': '',  # pcweb.js: e.currentUserIP
+                'z': '',  # pcweb.js: e.preDispatchArea
+                'bt': '',  # pcweb.js: e.preDefinition
+                'ct': '5',  # pcweb.js: e.currentDefinition
+                # pcweb.js: mi: "tv_" + t.albumId + "_" + t.tvid + "_" + t.vid,
+                'mi': 'tv_%s_%s_%s' % (albumid, tvid, vid),
+                'e': '',
+                'pv': '0.1',
+                'tn': str(random.random()),
 
-        req = urllib2.Request('https://data.video.iqiyi.com/videos/%s?%s' % (path.lstrip('/'), encode_params))
-        res = self.parent.opener.open(req)
-        raw = res.read()
-        text = raw_decompress(raw, res.info())
-        msg = json.loads(text)
-        return msg
+            }
+
+            path, query = urllib.splitquery(paths[i])
+            params.update(extract_query(query))
+
+            encode_params = urllib.urlencode(params)
+
+            req = urllib2.Request('https://data.video.iqiyi.com/videos/%s?%s' % (path.lstrip('/'), encode_params))
+            res = self.parent.opener.open(req)
+            raw = res.read()
+            text = raw_decompress(raw, res.info())
+            msg = json.loads(text)
+            all_res.append(msg)
+
+        return all_res
 
 
 def raw_decompress(data, headers_msg):
@@ -423,7 +466,7 @@ def extract_query(query_str):
 
 def init():
     global _Iqiyi_
-    JSExecutor.init()
+    # PyJSCaller.init()
     _Iqiyi_ = Iqiyi()
 
 def parse(url, bid=[600]):

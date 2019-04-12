@@ -2288,6 +2288,4 @@ function callback(){
     return "Q" + authkey(url)
 
 }
-
-
-// console.log(callback());
+// var ___=[];___.push(cmd5x('/jp/dash?uid=&vid=2051f25dd7d29a08e63180d36eb91455&src=01010031010000000000&locale=zh_cn&s=&bid=600&ori=pcw&ost=0&cf=&k_uid=&callback=Q14a6169c4f9beca044569ab0faaf8da9&vt=0&ppt=0&prio=%7B%22ff%22%3A+%22f4v%22%2C+%22code%22%3A+2%7D&tvid=2246828400&qd_v=1&ct=&lid=&ps=1&k_tag=1&d=0&pt=0&rs=1&bop=%7B%27version%27%3A+%277.0%27%2C+%27dfp%27%3A+%27%27%7D&ut=1&dfp=&authKey=988cf92f71082f65fac11649ef71dba6&pck=&k_err_retries=0&tm=1554829027490&k_ft4=4'));;console.log(JSON.stringify(___))

@@ -1,7 +1,7 @@
 
 
 from packer import Packer
-import time,threading
+import time, threading
 
 class Manager(Packer, object):
     def __init__(self):
@@ -14,25 +14,25 @@ class Manager(Packer, object):
 
         self.queue = TaskQueue()
 
-        self.__inspector_thread__ = None
+        self.__insp_thr__ = None
         self.shutdown_flag = False
-
+        self.all_pause_flag = True
         self.__queue_lock__ = threading.Lock()
 
-
-    def __inspector__(self):
+    def __insp__(self):
 
         while True:
-            if self.shutdown_flag:
-                break
-            self.checkRunQueue()
 
+            self.checkRunQueue()
+            if self.shutdown_flag or self.all_pause_flag:
+                self.checkRunQueue()
+                break
             self.run()
 
             if not self.queue.undone and self.isEnd():
                 self.checkRunQueue()
                 break
-            time.sleep(1)
+            time.sleep(0.2)
 
     def checkRunQueue(self):
         with self.__queue_lock__:
@@ -104,6 +104,7 @@ class Manager(Packer, object):
         del self.name_id[self.getIdFromName(id)]
 
     def run(self, id=None):
+        self.all_pause_flag = False
         if id is not None:
             if len(self.queue.run) < self.max_task:
                 self.tasks[id].run()
@@ -119,11 +120,13 @@ class Manager(Packer, object):
                             self.queue.pause.remove(i)
                         self.queue.undone.remove(i)
 
-        if not self.__inspector_thread__ or not self.__inspector_thread__.isAlive():
-            self.__inspector_thread__ = threading.Thread(target=self.__inspector__)
-            self.__inspector_thread__.start()
+        if not self.__insp_thr__ or not self.__insp_thr__.isAlive():
+
+            self.__insp_thr__ = threading.Thread(target=self.__insp__, name='Nbdler-Manager')
+            self.__insp_thr__.start()
 
     def pause(self, id=None):
+
         if id is not None:
             self.tasks[id].pause()
             if id in self.queue.run:
@@ -131,6 +134,8 @@ class Manager(Packer, object):
             if id not in self.queue.pause:
                 self.queue.pause.append(id)
         else:
+            self.all_pause_flag = True
+            self.__insp_thr__.join()
             tmp = self.getRunQueue()[:]
             for i in tmp:
                 threading.Thread(target=self.tasks[i].pause).start()
@@ -139,13 +144,16 @@ class Manager(Packer, object):
                 if i not in self.queue.pause:
                     self.queue.pause.append(i)
 
+            self.checkRunQueue()
+
     def shutdown(self):
         self.shutdown_flag = True
-        while self.__inspector_thread__ and self.__inspector_thread__.isAlive():
-            time.sleep(0.01)
+        self.__insp_thr__.join()
+        for i in self.getRunQueue():
+            threading.Thread(target=self.tasks[i].shutdown).start()
 
-        self.pause()
-        pass
+        for i in self.tasks.values():
+            i.join()
 
     def close(self):
         pass
@@ -218,5 +226,6 @@ class TaskQueue(object):
         self.pause = []
         self.undone = []
         self.done = []
+        self.ready = []
 
 

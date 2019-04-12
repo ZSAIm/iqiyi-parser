@@ -17,8 +17,8 @@ class ListCtrl_Parser(wx.ListCtrl):
         self.AppendColumn('分辨率', format=wx.LIST_FORMAT_LEFT, width=80)
         self.AppendColumn('文件数', format=wx.LIST_FORMAT_LEFT, width=50)
         self.AppendColumn('大小', width=100, format=wx.LIST_FORMAT_RIGHT)
-        self.AppendColumn('格式', width=60, format=wx.LIST_FORMAT_LEFT)
-
+        self.AppendColumn('格式', width=50, format=wx.LIST_FORMAT_LEFT)
+        self.AppendColumn('M3U8', width=50, format=wx.LIST_FORMAT_CENTER)
 
 
     def Append(self, entry, fgcolor=None):

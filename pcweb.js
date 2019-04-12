@@ -2288,6 +2288,27 @@ function callback(){
     return "Q" + authkey(url)
 
 }
+// var ___=[];___.push(cmd5x('/jp/dash?uid=&vid=2051f25dd7d29a08e63180d36eb91455&src=01010031010000000000&locale=zh_cn&s=&bid=600&ori=pcw&ost=0&cf=&k_uid=&callback=Q14a6169c4f9beca044569ab0faaf8da9&vt=0&ppt=0&prio=%7B%22ff%22%3A+%22f4v%22%2C+%22code%22%3A+2%7D&tvid=2246828400&qd_v=1&ct=&lid=&ps=1&k_tag=1&d=0&pt=0&rs=1&bop=%7B%27version%27%3A+%277.0%27%2C+%27dfp%27%3A+%27%27%7D&ut=1&dfp=&authKey=988cf92f71082f65fac11649ef71dba6&pck=&k_err_retries=0&tm=1554829027490&k_ft4=4'));;console.log(JSON.stringify(___))
+// var ___=[];___.push(cmd5x('1554863233_b2c6a8528dd554f241e1d724572429e8495af768ab97f4c561a3a911a7ce1560'));;console.log(JSON.stringify(___));
+// var ___=[];
+// ___.push(requite('querystring'));
+// ___.push(authkey('abcdefghijklmnopqrstuvwxyz'));
+// ___.push(callback(___[1]+'hello'));
+// ___.push({'2': 2, 'qq': '111'+___[1], 'ee': 3});
+// ___.push({'qq': ___[2]});
+// ___.push(['123 '+___[1], ___[2], ___[4]]);
+// ___.push([1, 2, ___[2], ___[5]]);
+// ___.push([___[2], '123 '+___[1], ___[6], 3, 4]);;
+// console.log(JSON.stringify(___))
 
-
-// console.log(callback());
+// const querystring = require('querystring');
+// console.log(querystring.stringify({ foo: 'bar', baz: ['qux', 'quux'], corge: '' }));
+// // returns 'foo=bar&baz=qux&baz=quux&corge='
+//
+// console.log(querystring.stringify({ foo: 'bar', baz: 'qux' }, ';', ':'));
+// ;
+// var ___=[];
+// ___.push(require('querystring'));
+// ___.push(___[0].stringify({'uid': '', 'vid': '254746f59b8c26f9215f748d56551c0e', 'src': '01010031010000000000', 'locale': 'zh_cn', 's': '', 'bid': '600', 'ori': 'pcw', 'ost': '0', 'cf': '', 'k_uid': '', 'callback': <PyJSCaller.Express instance at 0x000000000467C508>, 'vt': '0', 'ppt': '0', 'prio': '{"ff": "f4v", "code": 2}', 'tvid': '1042924800', 'qd_v': '1', 'ct': '', 'lid': '', 'ps': '1', 'k_tag': '1', 'd': '0', 'pt': '0', 'rs': '1', 'bop': {'version': '7.0', 'dfp': ''}, 'ut': '1', 'dfp': '', 'authKey': <PyJSCaller.Express instance at 0x000000000467C3C8>, 'pck': '', 'k_err_retries': '0', 'tm': '1554904730643', 'k_ft4': '4'}));
+// ___.push(cmd5x('/jp/dash?'+___[1]));;
+// console.log(JSON.stringify(___));
