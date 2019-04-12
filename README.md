@@ -67,7 +67,8 @@
 
 
 ## 引用项目
-__``nbdler``__: https://github.com/ZSAIm/nbdler
+__``Nbdler``__: https://github.com/ZSAIm/Nbdler
+__``PyJSCaller``__: https://github.com/ZSAIm/PyJSCaller
 
 ***
 ## 项目地址
