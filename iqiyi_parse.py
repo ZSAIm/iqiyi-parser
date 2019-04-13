@@ -32,7 +32,7 @@ global_params = {
     # discrete data
     'tvid': '',
     'vid': '',
-    'src': '01010031010010000000',              # src: n.getPtid(c.isTWLocale()),
+    'src': '01010031010000000000',              # src: n.getPtid(c.isTWLocale()),
     'tm': '',
 
     # resolution
