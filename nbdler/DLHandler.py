@@ -114,6 +114,9 @@ class Handler(Packer, object):
                 'max_speed': 'url.max_speed',
         }
 
+    def setRangeFormat(self, range_format='Range: bytes=%d-%d'):
+        self.globalprog.setRangeFormat(range_format)
+
     def config(self, **kwargs):
 
         for i, j in self.__config_params__().items():

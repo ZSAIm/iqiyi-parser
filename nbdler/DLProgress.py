@@ -242,10 +242,12 @@ class GlobalProgress(Packer, object):
         self.allotter = DLAllotter.Allotter(Handler, self)
         self.inspector = DLInspector.Inspector(Handler, self, self.allotter)
 
+        self.range_format = 'Range: bytes=%d-%d'
+
         self.__packet_frame__ = {}
 
-        self.__buff_lock__ = threading.Lock()
         self.__buff_counter__ = 0
+        self.__buff_lock__ = threading.Lock()
         self.__progresses_lock__ = threading.Lock()
         # self.__release_thread__ = None
         self.__insspeed_lock__ = threading.Lock()
@@ -288,6 +290,9 @@ class GlobalProgress(Packer, object):
         #     self.inspector.runLimiter()
         self.inspector.runSelfCheck()
 
+    def setRangeFormat(self, range_format='Range: bytes=%d-%d'):
+
+        self.range_format = range_format
 
     def checkAllGoEnd(self):
 

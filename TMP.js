@@ -2314,12 +2314,5 @@ function callback(){
 // console.log(JSON.stringify(___));
 ;
 var ___=[];
-___.push(authkey(''));
-___.push(authkey(___[0]+'1555078231959'+'2274363000'));
-___.push({'version': '7.0', 'dfp': ''});
-___.push(require('querystring'));
-___.push(callback());
-___.push({'uid': '', 'vid': '099e95ad61c08118a7fc033ef48c3a41', 'locale': 'zh_cn', 'ost': '0', 'd': '0', 'vt': '0', 'ppt': '0', 'qd_v': '1', 'ct': '', 'lid': '', 'ps': '1', 'k_tag': '1', 'prio': '{"ff": "f4v", "code": 2}', 'pt': '0', 'rs': '1', 'dfp': '', 'authKey': ___[1], 'pck': '', 'tm': '1555078231959', 'k_ft4': '4', 'bid': '600', 'k_uid': '871166490376f557dd78bb41f28ddaea', 'cf': '', 'ori': 'pcw', 'tvid': '2274363000', 'src': '01080031010000000000', 'k_err_retries': '0', 'bop': ___[2], 'ut': '1', 'callback': ___[4], 's': ''});
-___.push(___[3].stringify(___[5]));
-___.push(cmd5x('/jp/dash?'+___[6]));;
+___.push(cmd5x('ba4b41df6d0d0252aa68b91973eb30ad'));;
 console.log(JSON.stringify(___))

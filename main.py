@@ -69,7 +69,9 @@ def build_dl():
         filepath = os.path.join(target_path, video_title)
         if os.path.exists(os.path.join(filepath, j + u'.nbdler')) or not os.path.exists(
                 os.path.join(filepath, j)):
-            dl = nbdler.open(filename=j, filepath=filepath, max_conn=3,urls=[all_urls[i]])
+            dl = nbdler.open(filename=j, filepath=filepath, max_conn=3, urls=[all_urls[i]])
+            if sel_res.getM3U8():
+                dl.setRangeFormat('&start=%d&end=%d')
             tmp_dlm.addHandler(dl, name=i)
         else:
             gui.frame_main.updateBlock(i, gui.COLOR_OK)

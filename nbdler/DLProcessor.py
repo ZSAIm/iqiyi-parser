@@ -222,22 +222,26 @@ class Processor(object):
 
             sock.connect((ip, self.target.port))
 
-            Range = (self.progress.begin + self.progress.go_inc, self.progress.end)
+            # Range = (self.progress.begin + self.progress.go_inc, self.progress.end)
+            #
+            # packet = 'GET %s HTTP/1.1\r\n' % self.target.path + \
+            #          'Host: %s\r\n' % self.target.host + \
+            #          'Connection: keep-alive\r\n' + \
+            #          '%s\r\n' % (self.getRangeFormat() % Range) + \
+            #          'Accept-Ranges: bytes\r\n' + \
+            #          '%s' + \
+            #          '\r\n'
+            #
+            # pack_format = ''
+            # for i, j in self.url.headers.items():
+            #     pack_format += i + ': ' + j + '\r\n'
+            #
+            # packet = packet % pack_format
 
-            packet = 'GET %s HTTP/1.1\r\n' % self.target.path + \
-                     'Host: %s\r\n' % self.target.host + \
-                     'Connection: keep-alive\r\n' + \
-                     'Range: bytes=%d-%d\r\n' % Range + \
-                     'Accept-Ranges: bytes\r\n' + \
-                     '%s' + \
-                     '\r\n'
+            packet = self.makeSocketPacket()
 
-            pack_format = ''
-            for i, j in self.url.headers.items():
-                pack_format += i + ': ' + j + '\r\n'
 
-            packet = packet % pack_format
-            sock.send(str.encode(str(packet)))
+            sock.send(packet)
             buff = sock.recv(1024)
         except Exception as e:
             # print(e.args)
@@ -355,6 +359,49 @@ class Processor(object):
         self.progress.status.pause()
         self.opareq.pause = False
 
+    def makeSocketPacket(self):
+        range_format = self.getRangeFormat()
+        Range = (self.progress.begin + self.progress.go_inc, self.progress.end)
+
+        if range_format[0] == '&':
+            path, query = urllib.splitquery(self.target.path)
+            query_dict = extract_query(query)
+            range_format = range_format % Range
+            for i in range_format[1:].split('&'):
+                param_key, param_value = urllib.splitvalue(i)
+                query_dict[param_key] = param_value
+
+            new_query = urllib.urlencode(query_dict)
+            http_head_top = 'GET %s HTTP/1.1\r\n' % ('%s?%s' % (path, new_query))
+
+            packet = http_head_top + \
+                     'Host: %s\r\n' % self.target.host + \
+                     'Connection: keep-alive\r\n' + \
+                     'Accept-Ranges: bytes\r\n' + \
+                     '%s' + \
+                     '\r\n'
+
+        else:
+            http_head_top = 'GET %s HTTP/1.1\r\n' % self.target.path
+
+            packet = http_head_top + \
+                     'Host: %s\r\n' % self.target.host + \
+                     'Connection: keep-alive\r\n' + \
+                     '%s\r\n' % (range_format % Range) + \
+                     'Accept-Ranges: bytes\r\n' + \
+                     '%s' + \
+                     '\r\n'
+
+        pack_format = ''
+        for i, j in self.url.headers.items():
+            pack_format += i + ': ' + j + '\r\n'
+
+        packet = packet % pack_format
+
+        return str.encode(str(packet))
+
+    def getRangeFormat(self):
+        return self.progress.globalprog.range_format
 
     def getWait(self):
         time.sleep(self.opareq.wait)
@@ -446,3 +493,13 @@ def parse_headers(http_msg):
             res_headers.append((name, value))
 
     return status, res_headers
+
+import urllib
+
+def extract_query(query_str):
+    querys = {}
+    for i in query_str.split('&'):
+        key_value = urllib.splitvalue(i)
+        querys[key_value[0]] = key_value[1]
+
+    return querys
