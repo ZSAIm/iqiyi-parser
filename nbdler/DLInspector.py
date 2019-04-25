@@ -1,9 +1,5 @@
 
-
-
-
-import logging, math
-import time, threading
+import time
 
 # logger = logging.getLogger('nbdler')
 
@@ -14,8 +10,8 @@ class Inspector(object):
         self.handler = Handler
         self.allotter = Allotter
 
-        self.__selfcheck_thread__ = None
-        self.__allotter_thread__ = None
+        self._selfcheck_thr = None
+        self._allo_thr = None
         self.__limiter_thread__ = None
 
         # self.__last_wait__ = 0
@@ -27,14 +23,14 @@ class Inspector(object):
         return self.handler.thrpool.Thread(*args, **kwargs)
 
     def runAllotter(self):
-        if not self.__allotter_thread__ or not self.__allotter_thread__.isAlive():
-            self.__allotter_thread__ = self._Thread(target=self.__allotter__, name='Allotter')
-            self.__allotter_thread__.start()
+        if not self._allo_thr or (self._allo_thr._started.is_set() and not self._allo_thr.isAlive()):
+            self._allo_thr = self._Thread(target=self.__allotter__, name='Nbdler-Allotter')
+            self._allo_thr.start()
 
     def runSelfCheck(self):
-        if not self.__selfcheck_thread__ or not self.__selfcheck_thread__.isAlive():
-            self.__selfcheck_thread__ = self._Thread(target=self.__selfcheck__, name='SelfCheck')
-            self.__selfcheck_thread__.start()
+        if not self._selfcheck_thr or not self._selfcheck_thr.isAlive():
+            self._selfcheck_thr = self._Thread(target=self.__selfcheck__, name='Nbdler-SelfCheck')
+            self._selfcheck_thr.start()
 
     # def runLimiter(self):
     #     if self.handler.url.max_speed != -1:

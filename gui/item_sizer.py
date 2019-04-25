@@ -13,6 +13,7 @@ def format_byte(bytes, format='%.2f%s'):
         return format % (bytes, 'B')
 
 
+
 class ItemBoxSizer(wx.BoxSizer):
     def __init__(self, parent, current_byte, total_byte, **kwargs):
         wx.BoxSizer.__init__(self, wx.HORIZONTAL)
@@ -61,16 +62,19 @@ class ItemBoxSizer(wx.BoxSizer):
         # self.Add(self.text_progress, 0, wx.ALL, 5)
         staticline1 = wx.StaticLine(self.parent, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL)
 
-
         self.Add(staticline1, 0, wx.EXPAND | wx.ALL, 2)
 
     def update(self, current_byte, speed_byte, totol_byte):
         self.total = totol_byte if totol_byte > 0 else 0
         percent = current_byte * 100.0 / self.total if self.total > 0 else 0
         speed = format_byte(speed_byte if speed_byte > 0 else 0, '%.1f%s/s')
-        self.text_percent.SetLabelText(str(round(percent, 1)) + '%')
 
-        self.text_speed.SetLabelText(speed)
+        text_percent = str(round(percent, 1)) + '%'
+        if text_percent != self.text_percent.GetLabelText():
+            self.text_percent.SetLabelText(text_percent)
+
+        if speed != self.text_speed.GetLabelText():
+            self.text_speed.SetLabelText(speed)
 
         self.gauge_progress.SetValue(int(percent*100))
 

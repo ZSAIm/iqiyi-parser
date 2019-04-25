@@ -235,14 +235,14 @@ class Express:
                     i.setRespond(sess)
 
 
-    def getRespond(self):
+    def getValue(self):
         if self.isResult():
             return self.getResult().get()
         else:
             eval_str = []
             for i in self.operands:
                 if isinstance(i, Express):
-                    eval_str.append(_expr_type_text_(i.getRespond()))
+                    eval_str.append(_expr_type_text_(i.getValue()))
                 else:
                     eval_str.append(_expr_type_text_(i))
             try:
@@ -336,8 +336,8 @@ class MethodPool:
     def __init__(self):
         pass
 
-    def __getattr__(self, item):
-        return object.__getattribute__(self, item)
+    # def __getattr__(self, item):
+    #     return object.__getattribute__(self, item)
 
 
 
@@ -510,9 +510,7 @@ if __name__ == "__main__":
         res = triMul(triAdd(a, b, c), triAdd(c, b, a), 1)  # 使用方法跟JS中基本一致。
         sess.call(res)  # 告诉sess我要你执行res
 
-
-    print('res响应: %s' % res.getRespond())  # 将得到最后执行结果 100
-
+    print(res.getValue())  # 将得到最后执行结果 100
     print('执行JS脚本总耗时：%s' % (time.clock() - start))
 
     start = time.clock()
@@ -524,7 +522,7 @@ if __name__ == "__main__":
         querystring = require('querystring')  # 获取querystring库
         querystring.require('stringify')  # 告诉sess我要用到querystring的stringify方法
 
-        query_dict = {'one': 2, 'two': [1, 'haha']}
+        query_dict = {'one': 2, 'two': [1, 'haha', {'h': res.getValue(), 'ss': {'2': 2}}]}
 
         query_str = querystring.stringify(query_dict)
         # 如果querystring下attr与方法重名，可以使用getMethod()获取方法，如 querystring.getMethod('stringify')
@@ -532,9 +530,7 @@ if __name__ == "__main__":
         # 对query_dict进行call是不必须的，sess会自动处理# 依赖关系，只需要call其中需要执行结果的变量即可。
         sess.call(query_str)
 
-
-    print('query_str响应: %s' % query_str.getRespond())
-
+    print(query_str.getValue())
     print('执行JS脚本总耗时: %s' % (time.clock() - start))
 
 

@@ -1,5 +1,5 @@
 
-import logging
+# import logging
 import threading
 import time
 
@@ -13,8 +13,8 @@ class ThreadPool:
         with self._app_lock:
             thr = threading.Thread(*args, **kwargs)
             self._threads.append(thr)
-            if not self._insp_thr_ or not self._insp_thr_.isAlive():
-                self._insp_thr_ = threading.Thread(target=self.__insp__, name='DLThreadPool')
+            if not self._insp_thr_ or (self._insp_thr_._started.is_set() and not self._insp_thr_.isAlive()):
+                self._insp_thr_ = threading.Thread(target=self.__insp__, name='Nbdler-ThreadPool')
                 self._insp_thr_.start()
         return thr
 
@@ -22,9 +22,7 @@ class ThreadPool:
         while True:
             with self._app_lock:
                 for i in list(self._threads):
-                    if i._Thread__stopped:
-                        # logging.info('%s' % i)
-                        print(i)
+                    if i._started.is_set() and not i.isAlive():
                         self._threads.remove(i)
                 if not self._threads:
                     break

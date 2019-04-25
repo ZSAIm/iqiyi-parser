@@ -12,9 +12,9 @@ class Allotter(object):
 
     def makeBaseConn(self):
 
-        ranges = self.blockToRange(self.makeEvenBlock(len(self.handler.url.getUrls())))
+        ranges = self.blockToRange(self.makeEvenBlock(len(self.handler.url.getAllUrl())))
 
-        for i, j in enumerate(self.handler.url.getUrls().keys()):
+        for i, j in enumerate(self.handler.url.getAllUrl().keys()):
             self.globalprog.insert(j, *ranges[i])
 
 
@@ -65,7 +65,7 @@ class Allotter(object):
     def getIdleUrl(self):
         idle_url = []
         url_health = self.getUrlsHealth()
-        for i in self.handler.url.getUrls().keys():
+        for i in self.handler.url.getAllUrl().keys():
             for m in url_health:
                 if m[0] == i:
                     break

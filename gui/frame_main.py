@@ -113,10 +113,16 @@ class FrameMain(wx.Frame):
     def updateMerge(self, cur_index):
         progress = '%d/%d' % (cur_index, self.total)
         percent = cur_index * 100.0 / self.total
-        self.text_percent.SetLabelText(str(round(percent, 1)) + '%')
+
+        text_percent = str(round(percent, 1)) + '%'
+
+        if text_percent != self.text_percent.GetLabelText():
+            self.text_percent.SetLabelText(text_percent)
+
         self.gauge_total.SetValue(int(percent*100))
-        self.text_speed.SetLabelText(progress)
-        self.sizer_total.Layout()
+        if progress != self.text_speed.GetLabelText():
+            self.text_speed.SetLabelText(progress)
+        # self.sizer_total.Layout()
 
     def insertItem(self, id, total_byte, cur_byte=0, speed_byte=0):
         item = ItemBoxSizer(self, cur_byte, total_byte, name=str(id), speed=speed_byte)
@@ -134,13 +140,16 @@ class FrameMain(wx.Frame):
         return self.items_dict
 
     def insertBlock(self, id):
-        block = wx.StaticText(self, wx.ID_ANY, str(id), wx.DefaultPosition, wx.Size(20, 20), wx.ALIGN_CENTER)
+
+        block = wx.StaticText(self, wx.ID_ANY, str(id), wx.DefaultPosition, wx.Size(20, 20),
+                              wx.ALIGN_CENTER)
         block.SetBackgroundColour(wx.Colour(144, 144, 144, 255))
         block.SetForegroundColour(wx.Colour(255, 255, 255, 255))
         self.block_list.append(block)
         self.sizer_blocks.Add(block, 0, wx.ALL, 5)
         self.sizer_items.Layout()
         self.Layout()
+
 
     def updateBlock(self, id, type):
         if type == COLOR_NORMAL:

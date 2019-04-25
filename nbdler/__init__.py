@@ -2,15 +2,14 @@
 # Name:        nbdler/__init__.py
 # Author:      ZSAIm
 #
-# Created:     12-Apr-2019
+# Created:     20-Jan-2019
 # License:     Apache-2.0
 #---------------------------------------------------------------------------
 
 
-
-from DLManager import Manager
-from DLProgress import GlobalProgress
-from DLHandler import AUTO, MANUAL, Handler
+from .DLManager import Manager
+from .DLProgress import GlobalProgress
+from .DLHandler import AUTO, MANUAL, Handler
 import zlib
 import io
 from wsgiref.headers import Headers

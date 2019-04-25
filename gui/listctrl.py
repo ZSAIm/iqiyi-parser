@@ -13,10 +13,11 @@ class ListCtrl_Parser(wx.ListCtrl):
         self.initColumn()
 
     def initColumn(self):
-        self.AppendColumn('bid', format=wx.LIST_FORMAT_LEFT, width=50)
-        self.AppendColumn('分辨率', format=wx.LIST_FORMAT_LEFT, width=80)
-        self.AppendColumn('文件数', format=wx.LIST_FORMAT_LEFT, width=50)
-        self.AppendColumn('大小', width=100, format=wx.LIST_FORMAT_RIGHT)
+        self.AppendColumn('Quality', format=wx.LIST_FORMAT_RIGHT, width=55)
+        self.AppendColumn('分辨率', format=wx.LIST_FORMAT_CENTER, width=80)
+        self.AppendColumn('Num', format=wx.LIST_FORMAT_RIGHT, width=40)
+        self.AppendColumn('视频大小', width=80, format=wx.LIST_FORMAT_RIGHT)
+        self.AppendColumn('音频', width=50, format=wx.LIST_FORMAT_CENTER)
         self.AppendColumn('格式', width=50, format=wx.LIST_FORMAT_LEFT)
         self.AppendColumn('M3U8', width=50, format=wx.LIST_FORMAT_CENTER)
 

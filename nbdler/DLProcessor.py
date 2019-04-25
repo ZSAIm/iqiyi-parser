@@ -3,8 +3,18 @@
 import socket, ssl
 import threading
 import time
-from DLInfos import Target
+from .DLInfos import Target
 import logging
+import traceback
+
+import sys
+
+if sys.version_info <= (2, 7):
+    from urllib import splitvalue, splitquery, urlencode
+
+elif sys.version_info >= (3, 0):
+    from urllib.parse import splitvalue, splitquery, urlencode
+
 
 logger = logging.getLogger('nbdler')
 
@@ -12,6 +22,7 @@ logger = logging.getLogger('nbdler')
 TMP_BUFFER_SIZE = 1024 * 1024 * 1
 
 socket.setdefaulttimeout(3)
+ssl._create_default_https_context = ssl._create_unverified_context
 
 class OpaReq:
     def __init__(self):
@@ -95,7 +106,7 @@ class Processor(object):
 
     def loadUrl(self, Urlid):
 
-        urls = self.getHandler().url.getUrls()
+        urls = self.getHandler().url.getAllUrl()
 
         if Urlid in urls:
             self.url = urls[Urlid]
@@ -109,7 +120,7 @@ class Processor(object):
         return self.progress.isReady()
 
     def isRunning(self):
-        return self.__thread__ and self.__thread__.isAlive()
+        return self.__thread__ and self.__thread__._started.is_set() and self.__thread__.isAlive()
 
     def isPause(self):
         return self.progress.isPause()
@@ -183,7 +194,7 @@ class Processor(object):
         else:
 
             status, _headers = parse_headers(buff[:(buff.index(b'\r\n\r\n'))])
-            self.target.update(headers=_headers)
+            self.target.update(headers=_headers, code=status)
 
             if status == 200:
                 self.__200__(sock, buff)
@@ -212,6 +223,9 @@ class Processor(object):
 
             if self.target.protocol == 'https':
                 sock = ssl.wrap_socket(socket.socket())
+
+                # ssl.SSLError: [SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure (_ssl.c:646)
+                sock.server_hostname = self.target.host
             elif self.target.protocol == 'http':
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -222,29 +236,13 @@ class Processor(object):
 
             sock.connect((ip, self.target.port))
 
-            # Range = (self.progress.begin + self.progress.go_inc, self.progress.end)
-            #
-            # packet = 'GET %s HTTP/1.1\r\n' % self.target.path + \
-            #          'Host: %s\r\n' % self.target.host + \
-            #          'Connection: keep-alive\r\n' + \
-            #          '%s\r\n' % (self.getRangeFormat() % Range) + \
-            #          'Accept-Ranges: bytes\r\n' + \
-            #          '%s' + \
-            #          '\r\n'
-            #
-            # pack_format = ''
-            # for i, j in self.url.headers.items():
-            #     pack_format += i + ': ' + j + '\r\n'
-            #
-            # packet = packet % pack_format
-
             packet = self.makeSocketPacket()
-
 
             sock.send(packet)
             buff = sock.recv(1024)
         except Exception as e:
             # print(e.args)
+            traceback.print_exc()
             self.error_counter.socket_error += 1
             sock = None
         else:
@@ -255,7 +253,7 @@ class Processor(object):
             else:
                 while b'\r\n\r\n' not in buff:
                     buff += sock.recv(512)
-                    if 'HTTP' not in buff:
+                    if b'HTTP' not in buff:
                         sock.shutdown(socket.SHUT_RDWR)
                         sock.close()
                         sock = None
@@ -347,10 +345,7 @@ class Processor(object):
     def close(self):
         self.progress.globalprog.checkAllGoEnd()
         self.opareq.clear()
-        # msg = 'Close: '
-        # extra = {'progress': '%-10d-%10d' % (self.progress.begin, self.progress.end),
-        #          'urlid': self.urlid}
-        # logger.info(msg, extra=extra)
+
 
     def pause(self):
         self.opareq.pause = True
@@ -360,48 +355,55 @@ class Processor(object):
         self.opareq.pause = False
 
     def makeSocketPacket(self):
-        range_format = self.getRangeFormat()
+
+        range_format = self.url.range_format
         Range = (self.progress.begin + self.progress.go_inc, self.progress.end)
 
+        add_headers = {
+            'Host': self.target.host,
+            'Connection': 'keep-alive',
+        }
+
         if range_format[0] == '&':
-            path, query = urllib.splitquery(self.target.path)
+            path, query = splitquery(self.target.path)
             query_dict = extract_query(query)
             range_format = range_format % Range
             for i in range_format[1:].split('&'):
-                param_key, param_value = urllib.splitvalue(i)
+                param_key, param_value = splitvalue(i)
                 query_dict[param_key] = param_value
 
-            new_query = urllib.urlencode(query_dict)
+            new_query = urlencode(query_dict)
             http_head_top = 'GET %s HTTP/1.1\r\n' % ('%s?%s' % (path, new_query))
 
-            packet = http_head_top + \
-                     'Host: %s\r\n' % self.target.host + \
-                     'Connection: keep-alive\r\n' + \
-                     'Accept-Ranges: bytes\r\n' + \
-                     '%s' + \
-                     '\r\n'
+            packet = http_head_top + '%s\r\n\r\n'
+            add_headers = {
+                'Host': self.target.host,
+                'Connection': 'keep-alive'
+            }
 
         else:
             http_head_top = 'GET %s HTTP/1.1\r\n' % self.target.path
 
-            packet = http_head_top + \
-                     'Host: %s\r\n' % self.target.host + \
-                     'Connection: keep-alive\r\n' + \
-                     '%s\r\n' % (range_format % Range) + \
-                     'Accept-Ranges: bytes\r\n' + \
-                     '%s' + \
-                     '\r\n'
+            packet = http_head_top + '%s\r\n\r\n'
+            range_field = range_format % Range
+            key_value = [i.strip() for i in range_field.split(':')]
 
-        pack_format = ''
-        for i, j in self.url.headers.items():
-            pack_format += i + ': ' + j + '\r\n'
+            key = key_value[0]
+            value = key_value[1]
 
-        packet = packet % pack_format
+            add_headers[key] = value
+            add_headers['Accept-Ranges'] = 'bytes'
+
+        request_headers = dict(self.url.headers.items())
+        request_headers.update(add_headers)
+        request_headers_str = []
+        for i in request_headers.items():
+            request_headers_str.append(': '.join(i))
+
+        packet = packet % '\r\n'.join(request_headers_str)
 
         return str.encode(str(packet))
 
-    def getRangeFormat(self):
-        return self.progress.globalprog.range_format
 
     def getWait(self):
         time.sleep(self.opareq.wait)
@@ -448,7 +450,7 @@ class Processor(object):
         # logger.info(msg, extra=extra)
         while True:
             if (self.isReady() and not self.isRunning() and
-                    not self.getHandler().thrpool.getThreadsFromName('SelfCheck')) or \
+                    not self.getHandler().thrpool.getThreadsFromName('Nbdler-SelfCheck')) or \
                     not self.opareq.cut:
                 break
             time.sleep(0.1)
@@ -494,12 +496,13 @@ def parse_headers(http_msg):
 
     return status, res_headers
 
-import urllib
+
 
 def extract_query(query_str):
     querys = {}
-    for i in query_str.split('&'):
-        key_value = urllib.splitvalue(i)
-        querys[key_value[0]] = key_value[1]
+    if query_str:
+        for i in query_str.split('&'):
+            key_value = splitvalue(i)
+            querys[key_value[0]] = key_value[1]
 
     return querys

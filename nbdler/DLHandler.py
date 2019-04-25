@@ -1,17 +1,17 @@
 
 import logging
-from DLInfos import *
-from DLProgress import *
-from packer import Packer
+from .DLInfos import *
+from .DLProgress import *
+from .packer import Packer
 import time, os
-from DLThreadPool import ThreadPool
+from .DLThreadPool import ThreadPool
 
 
-LOG_FORMAT = "%(asctime)s,%(msecs)03d - %(levelname)s - %(threadName)-12s - (%(progress)s)[%(urlid)s] - %(message)s"
-
-logging.basicConfig(format=LOG_FORMAT, datefmt="%m/%d/%Y %H:%M:%S", level=logging.CRITICAL)
-
-logger = logging.getLogger('nbdler')
+# LOG_FORMAT = "%(asctime)s,%(msecs)03d - %(levelname)s - %(threadName)-12s - (%(progress)s)[%(urlid)s] - %(message)s"
+#
+# logging.basicConfig(format=LOG_FORMAT, datefmt="%m/%d/%Y %H:%M:%S", level=logging.CRITICAL)
+#
+# logger = logging.getLogger('nbdler')
 
 
 __URL_NODE_PARAMS__ = {
@@ -21,7 +21,9 @@ __URL_NODE_PARAMS__ = {
     'ports': 'port',
     'paths': 'path',
     'headers': 'headers',
-    'max_threads': 'max_thread'
+    'max_threads': 'max_thread',
+    'range_formats': 'range_format',
+    'pull_flags': 'pull_flag'
 }
 
 class Handler(Packer, object):
@@ -65,12 +67,12 @@ class Handler(Packer, object):
                     elif len(kwargs[m]) == iter_len:
                         node[n] = kwargs[m][i]
                     else:
-                        raise Exception('IterLenError')
+                        raise ValueError('IterLenError')
 
             pack_yield.append(node)
 
-        self.thrpool.Thread(target=self.__batchAdd__, args=(pack_yield,), name='AddNode').start()
-
+        self.thrpool.Thread(target=self.__batchAdd__, args=(pack_yield,), name='Nbdler-AddNode').start()
+        print(self.file.name)
 
     def addNode(self, *args, **kwargs):
         self.url.addNode(*args, **kwargs)
@@ -114,8 +116,8 @@ class Handler(Packer, object):
                 'max_speed': 'url.max_speed',
         }
 
-    def setRangeFormat(self, range_format='Range: bytes=%d-%d'):
-        self.globalprog.setRangeFormat(range_format)
+    # def setRangeFormat(self, range_format='Range: bytes=%d-%d'):
+    #     self.globalprog.setRangeFormat(range_format)
 
     def config(self, **kwargs):
 
@@ -169,56 +171,56 @@ class Handler(Packer, object):
     def fix(self, segs):
         self.fix(segs)
 
-    def sampleUrls(self, sample_size=1024 * 1024):
-
-        import random
-
-        self.url.matchSize()
-
-        if self.file.size < sample_size:
-            sample_size = self.file.size
-
-        _begin = random.randint(0, self.file.size - sample_size)
-        _end = _begin + sample_size
-
-        global_dict = {}
-        for i in self.url.getUrls().keys():
-            glob = GlobalProgress(self, MANUAL)
-            global_dict[i] = glob
-            self.install(glob)
-            self.insert(_begin, _end, i)
-            self.manualRun()
-
-        while True:
-            for i in global_dict.values():
-                if not i.isEnd():
-                    break
-            else:
-                break
-            time.sleep(0.1)
-
-        samples = {}
-
-        for i, j in global_dict.items():
-            i.fs.seek(_begin)
-            samples[i] = i.fs.read(sample_size)
-
-        sample_type = []
-        sample_type.append([samples.keys()[0]])
-        for i, j in samples.items():
-            for m in sample_type:
-                if i not in m:
-                    if samples[i] == samples[m[0]]:
-                        m.append(i)
-                        break
-                else:
-                    break
-            else:
-                sample_type.append([i])
-
-        self.uninstall()
-
-        return sample_type
+    # def sampleUrls(self, sample_size=1024 * 1024):
+    #
+    #     import random
+    #
+    #     self.url.matchSize()
+    #
+    #     if self.file.size < sample_size:
+    #         sample_size = self.file.size
+    #
+    #     _begin = random.randint(0, self.file.size - sample_size)
+    #     _end = _begin + sample_size
+    #
+    #     global_dict = {}
+    #     for i in self.url.getAllUrl().keys():
+    #         glob = GlobalProgress(self, MANUAL)
+    #         global_dict[i] = glob
+    #         self.install(glob)
+    #         self.insert(_begin, _end, i)
+    #         self.manualRun()
+    #
+    #     while True:
+    #         for i in global_dict.values():
+    #             if not i.isEnd():
+    #                 break
+    #         else:
+    #             break
+    #         time.sleep(0.1)
+    #
+    #     samples = {}
+    #
+    #     for i, j in global_dict.items():
+    #         i.fs.seek(_begin)
+    #         samples[i] = i.fs.read(sample_size)
+    #
+    #     sample_type = []
+    #     sample_type.append([samples.keys()[0]])
+    #     for i, j in samples.items():
+    #         for m in sample_type:
+    #             if i not in m:
+    #                 if samples[i] == samples[m[0]]:
+    #                     m.append(i)
+    #                     break
+    #             else:
+    #                 break
+    #         else:
+    #             sample_type.append([i])
+    #
+    #     self.uninstall()
+    #
+    #     return sample_type
 
     def __run__(self):
         if self.__new_project__:
@@ -260,11 +262,11 @@ class Handler(Packer, object):
     def getFileSize(self):
         return self.file.size
 
-    def getUrls(self):
+    def getAllUrl(self):
         return self.url.dict
 
-    def getInsSpeed(self, update=True):
-        return self.globalprog.getInsSpeed(update)
+    def getInsSpeed(self):
+        return self.globalprog.getInsSpeed()
 
     def getAvgSpeed(self):
         return self.globalprog.getAvgSpeed()

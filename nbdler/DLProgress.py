@@ -1,8 +1,8 @@
 
 
 import time, os
-import DLProcessor
-from packer import Packer
+from . import DLProcessor
+from .packer import Packer
 import gc
 
 
@@ -219,9 +219,9 @@ MANUAL = 0
 AUTO = 1
 
 import threading, math, zlib
-import DLInspector, DLAllotter
+from . import DLInspector, DLAllotter
 
-from DLInfos import FileStorage
+from .DLInfos import FileStorage
 
 
 
@@ -242,7 +242,7 @@ class GlobalProgress(Packer, object):
         self.allotter = DLAllotter.Allotter(Handler, self)
         self.inspector = DLInspector.Inspector(Handler, self, self.allotter)
 
-        self.range_format = 'Range: bytes=%d-%d'
+        # self.range_format = 'Range: bytes=%d-%d'
 
         self.__packet_frame__ = {}
 
@@ -290,9 +290,9 @@ class GlobalProgress(Packer, object):
         #     self.inspector.runLimiter()
         self.inspector.runSelfCheck()
 
-    def setRangeFormat(self, range_format='Range: bytes=%d-%d'):
-
-        self.range_format = range_format
+    # def setRangeFormat(self, range_format='Range: bytes=%d-%d'):
+    #
+    #     self.range_format = range_format
 
     def checkAllGoEnd(self):
 
@@ -337,13 +337,13 @@ class GlobalProgress(Packer, object):
     def pause(self):
 
         self.pause_req = True
-        for i in self.handler.thrpool.getThreadsFromName('AddNode'):
+        for i in self.handler.thrpool.getThreadsFromName('Nbdler-AddNode'):
             i.join()
 
-        for i in self.handler.thrpool.getThreadsFromName('Allotter'):
+        for i in self.handler.thrpool.getThreadsFromName('Nbdler-Allotter'):
             i.join()
 
-        for i in self.handler.thrpool.getThreadsFromName('SelfCheck'):
+        for i in self.handler.thrpool.getThreadsFromName('Nbdler-SelfCheck'):
             i.join()
 
         self.makePause()
@@ -391,9 +391,13 @@ class GlobalProgress(Packer, object):
 
     def shutdown(self):
         if self.handler.file.size == -1:
+            self.join()
+            print(self.handler.file.name, 'shutdown')
             return
-        self.pause()
-        self.join()
+        else:
+            self.pause()
+            self.join()
+            print(self.handler.file.name, 'shutdown')
 
     def isEnd(self):
 
@@ -421,7 +425,7 @@ class GlobalProgress(Packer, object):
         return (self.handler.file.size - self.getLeft()) * 1.0 / totaltime if totaltime else 0
 
 
-    def getInsSpeed(self, update=True):
+    def getInsSpeed(self):
         with self.__insspeed_lock__:
 
             curleft = self.getLeft()
@@ -438,9 +442,10 @@ class GlobalProgress(Packer, object):
             incbyte = self.piece.last_left - curleft
             incclock = curclock - self.piece.last_clock
 
-            if update:
-                self.piece.last_left = curleft
-                self.piece.last_clock = curclock
+            if incclock >= 1:
+                self.piece.last_left = curleft + incbyte / 2.0
+                self.piece.last_clock = curclock - incclock / 2.0
+
 
         return incbyte * 1.0 / incclock if incclock > 0 else 0
 
@@ -494,17 +499,13 @@ class GlobalProgress(Packer, object):
 
             self.save()
 
-            # self.__release_thread__ = None
-
 
     def checkBuffer(self, bytelen):
         self.__buff_counter__ += bytelen
 
         if self.__buff_counter__ >= self.handler.file.buffer_size:
             self.__buff_counter__ = 0
-            self._Thread(target=self.releaseBuffer, name='ReleaseBuffer').start()
-            # self.__release_thread__ = self._Thread(target=self.releaseBuffer, name='ReleaseBuffer')
-            # self.__release_thread__.start()
+            self._Thread(target=self.releaseBuffer, name='Nbdler-ReleaseBuffer').start()
 
     def save(self):
         if not self.__packet_frame__:
@@ -526,18 +527,23 @@ class GlobalProgress(Packer, object):
     def askCut(self, Range):
         if Range:
             progress = None
-            odd = [None, None]
-            for i in self.progresses.values():
+            gap = False
+            cur_progresses = list(self.progresses.values())
+            for i in cur_progresses:
                 if i.end == Range[1]:
                     progress = i
                     break
-                elif i.begin == Range[1]:
-                    odd[1] = i
-                elif i.end == Range[0]:
-                    odd[0] = i
+            if not progress:
+                for i in cur_progresses:
+                    if i.begin == Range[1]:
+                        gap = True
+                        break
+                    elif i.end == Range[0]:
+                        gap = True
+                        break
 
-            if not progress and odd[0] and odd[1]:
-                return Range
+                if gap:
+                    return Range
 
             return progress.processor.cutRequest(Range)
         else:

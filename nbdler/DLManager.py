@@ -1,6 +1,6 @@
 
 
-from packer import Packer
+from .packer import Packer
 import time, threading
 
 class Manager(Packer, object):
@@ -14,7 +14,7 @@ class Manager(Packer, object):
 
         self.queue = TaskQueue()
 
-        self.__insp_thr__ = None
+        self._insp_thr = None
         self.shutdown_flag = False
         self.all_pause_flag = True
         self.__queue_lock__ = threading.Lock()
@@ -32,7 +32,7 @@ class Manager(Packer, object):
             if not self.queue.undone and self.isEnd():
                 self.checkRunQueue()
                 break
-            time.sleep(0.2)
+            time.sleep(0.1)
 
     def checkRunQueue(self):
         with self.__queue_lock__:
@@ -120,10 +120,10 @@ class Manager(Packer, object):
                             self.queue.pause.remove(i)
                         self.queue.undone.remove(i)
 
-        if not self.__insp_thr__ or not self.__insp_thr__.isAlive():
+        if not self._insp_thr or not self._insp_thr.isAlive():
 
-            self.__insp_thr__ = threading.Thread(target=self.__insp__, name='Nbdler-Manager')
-            self.__insp_thr__.start()
+            self._insp_thr = threading.Thread(target=self.__insp__, name='Nbdler-Manager')
+            self._insp_thr.start()
 
     def pause(self, id=None):
 
@@ -135,7 +135,7 @@ class Manager(Packer, object):
                 self.queue.pause.append(id)
         else:
             self.all_pause_flag = True
-            self.__insp_thr__.join()
+            self._insp_thr.join()
             tmp = self.getRunQueue()[:]
             for i in tmp:
                 threading.Thread(target=self.tasks[i].pause).start()
@@ -148,16 +148,23 @@ class Manager(Packer, object):
 
     def shutdown(self):
         self.shutdown_flag = True
-        self.__insp_thr__.join()
-        for i in self.getRunQueue():
-            threading.Thread(target=self.tasks[i].shutdown).start()
+        if self._insp_thr:
+            self._insp_thr.join()
 
-        for i in self.tasks.values():
-            i.join()
+            for i in self.tasks.values():
+                threading.Thread(target=i.shutdown).start()
+
 
     def close(self):
         pass
 
+    def join(self):
+        if not self._insp_thr:
+            raise RuntimeError('cannot join thread before it is started')
+
+        self._insp_thr.join()
+        for i in self.tasks.values():
+            i.join()
 
     def getAvgSpeed(self, id=None):
         if id is not None:
@@ -176,9 +183,22 @@ class Manager(Packer, object):
 
         speed = 0
         for i in self.queue.run:
-            if not self.tasks[i].isEnd():
-                speed += self.tasks[i].getInsSpeed()
+            speed += self.tasks[i].getInsSpeed()
         return speed
+
+    def getIncByte(self, id=None):
+        if id is not None:
+            return self.tasks[id].getIncByte()
+
+        inc = 0
+        for i in self.queue.done:
+            inc += self.tasks[i].getFileSize()
+        for i in self.queue.run:
+            dl = self.tasks[i]
+            inc += dl.getFileSize() - dl.getLeft()
+
+        return inc
+
 
 
     def getLeft(self, id=None):
