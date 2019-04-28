@@ -9,13 +9,11 @@ github: https://github.com/ZSAIm/iqiyi-parser
 
 
 import gui
-import wx
+import wx, time, sys
 import GUIEventBinder
 import socket
 import threading
 import flow
-import sys
-import time
 import handler
 
 socket.setdefaulttimeout(3)

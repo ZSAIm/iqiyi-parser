@@ -3,6 +3,7 @@
 import wx
 from gui.item_sizer import ItemBoxSizer, format_byte
 import time
+import CommonVar as cv
 
 COLOR_OK = 1
 
@@ -13,7 +14,7 @@ COLOR_RUN = 4
 
 class FrameMain(wx.Frame):
     def __init__(self, parent):
-        wx.Frame.__init__(self, parent, id=wx.ID_ANY, title='IQIYI视频下载器', pos=wx.DefaultPosition,
+        wx.Frame.__init__(self, parent, id=wx.ID_ANY, title='视频下载器', pos=wx.DefaultPosition,
                           size=wx.Size(-1, 420), style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL)
 
         self.SetSizeHints(wx.DefaultSize, wx.DefaultSize)
@@ -72,6 +73,7 @@ class FrameMain(wx.Frame):
         self.timer.SetOwner(self, wx.ID_ANY)
 
 
+
     def initTotal(self, total):
         self.total = total if total > 0 else 0
         self.gauge_total = wx.Gauge(self, wx.ID_ANY, 10000, wx.DefaultPosition, wx.DefaultSize,
@@ -99,16 +101,16 @@ class FrameMain(wx.Frame):
         self.gauge_total.SetValue(int(percent*100))
 
         self.text_progress.SetLabelText(progress)
-        self.sizer_total.Layout()
-        self.sizer_top.Layout()
+        # self.sizer_total.Layout()
+        # self.sizer_top.Layout()
 
     def initTotal_Merge(self, total):
         self.total = total
         self.text_percent.SetLabelText('0%')
         self.gauge_total.SetValue(0)
         self.text_speed.SetLabelText('0/0')
-        self.sizer_total.Layout()
-        self.sizer_top.Layout()
+        # self.sizer_total.Layout()
+        # self.sizer_top.Layout()
 
     def updateMerge(self, cur_index):
         progress = '%d/%d' % (cur_index, self.total)
@@ -131,7 +133,7 @@ class FrameMain(wx.Frame):
 
         self.sizer_items.Add(item, 1, wx.ALL | wx.EXPAND, 1)
 
-        self.sizer_items.Layout()
+        # self.sizer_items.Layout()
 
     def getItem(self, id):
         return self.items_dict.get(id, None)
@@ -147,8 +149,8 @@ class FrameMain(wx.Frame):
         block.SetForegroundColour(wx.Colour(255, 255, 255, 255))
         self.block_list.append(block)
         self.sizer_blocks.Add(block, 0, wx.ALL, 5)
-        self.sizer_items.Layout()
-        self.Layout()
+        # self.sizer_items.Layout()
+        # self.Layout()
 
 
     def updateBlock(self, id, type):
@@ -161,7 +163,7 @@ class FrameMain(wx.Frame):
         else:
             self.block_list[id].SetBackgroundColour(wx.Colour(255, 0, 0, 255))
 
-        self.Layout()
+        # self.Layout()
 
     def deleteItem(self, id, clear_widget=True):
         if self.items_list:
@@ -171,10 +173,12 @@ class FrameMain(wx.Frame):
             if clear_widget:
                 item.Clear(True)
                 self.sizer_items.Remove(item)
-                self.Layout()
+                # self.Layout()
 
     def setTitleName(self, text):
         self.text_title.SetLabelText(text)
+
+
 
 
 class MainMenuBar(wx.MenuBar):
@@ -202,7 +206,7 @@ class Menu_File(wx.Menu):
         self.parse = wx.MenuItem(self, wx.ID_ANY, 'Parse', wx.EmptyString, wx.ITEM_NORMAL)
         self.parse.Enable(False)
         self.settings = wx.MenuItem(self, wx.ID_ANY, 'Settings', wx.EmptyString, wx.ITEM_NORMAL)
-        self.settings.Enable(False)
+        # self.settings.Enable(False)
         self.exit = wx.MenuItem(self, wx.ID_ANY, 'Exit', wx.EmptyString, wx.ITEM_NORMAL)
 
         self.Append(self.parse)
@@ -222,5 +226,5 @@ class Menu_Help(wx.Menu):
         self.initMenuItems()
 
     def initMenuItems(self):
-        self.about = wx.MenuItem(self, wx.ID_ANY, 'About', wx.EmptyString, wx.ITEM_NORMAL)
+        self.about = wx.MenuItem(self, wx.ID_ANY, '&About\tF1', wx.EmptyString, wx.ITEM_NORMAL)
         self.Append(self.about)

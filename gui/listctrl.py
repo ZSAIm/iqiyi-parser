@@ -9,13 +9,15 @@ EVEN_BGCOLOR = wx.Colour(255, 255, 255, 255)
 class ListCtrl_Parser(wx.ListCtrl):
     def __init__(self, *args):
         wx.ListCtrl.__init__(self, *args)
-
         self.initColumn()
 
+        self.menu = Menu_Parser()
+        self.Bind(wx.EVT_RIGHT_DOWN, self.OnContextMenu)
+
     def initColumn(self):
-        self.AppendColumn('Quality', format=wx.LIST_FORMAT_RIGHT, width=55)
+        self.AppendColumn('Q', format=wx.LIST_FORMAT_RIGHT, width=50)
         self.AppendColumn('分辨率', format=wx.LIST_FORMAT_CENTER, width=80)
-        self.AppendColumn('Num', format=wx.LIST_FORMAT_RIGHT, width=40)
+        self.AppendColumn('N', format=wx.LIST_FORMAT_RIGHT, width=40)
         self.AppendColumn('视频大小', width=80, format=wx.LIST_FORMAT_RIGHT)
         self.AppendColumn('音频', width=50, format=wx.LIST_FORMAT_CENTER)
         self.AppendColumn('格式', width=50, format=wx.LIST_FORMAT_LEFT)
@@ -32,8 +34,6 @@ class ListCtrl_Parser(wx.ListCtrl):
             self.SetItemTextColour(item_count-1, wx.Colour(fgcolor))
 
 
-
-
     def DeleteItem(self, item):
         wx.ListCtrl.DeleteItem(self, item)
         item_count = self.GetItemCount()
@@ -45,3 +45,26 @@ class ListCtrl_Parser(wx.ListCtrl):
 
             odd = not odd
 
+    def OnContextMenu(self, event):
+        if self.GetFirstSelected() != -1:
+            self.PopupMenu(self.menu, event.GetPosition())
+
+
+class Menu_Parser(wx.Menu):
+    def __init__(self, *args):
+        wx.Menu.__init__(self, *args)
+        self.godownload = None
+        self.copylinks = None
+
+        self.initItems()
+
+    def initItems(self):
+        self.godownload = wx.MenuItem(self, wx.ID_ANY, u'下载所选项', wx.EmptyString, wx.ITEM_NORMAL)
+        self.Append(self.godownload)
+
+        self.AppendSeparator()
+
+        self.copylinks = wx.MenuItem(self, wx.ID_ANY, u'复制下载链接', wx.EmptyString, wx.ITEM_NORMAL)
+        self.Append(self.copylinks)
+
+        self.copylinks.Enable(False)

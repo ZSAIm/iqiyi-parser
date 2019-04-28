@@ -253,7 +253,7 @@ class Handler(Packer, object):
 
 
     def __packet_params__(self):
-        return ['url', 'file', '__auto_global__']
+        return ['url', 'file', '__globalprog__']
 
 
     def getFileName(self):

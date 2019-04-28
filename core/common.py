@@ -5,7 +5,7 @@ from urllib.parse import splitvalue, splitquery, urlencode
 import socket
 from urllib.error import URLError
 from ssl import SSLError
-import time
+import time, re
 import CommonVar as cv
 
 def raw_decompress(data, headers_msg):
@@ -127,14 +127,16 @@ class BasicParser:
 
 
 class BasicRespond:
-    def __init__(self, parent, full_json, res_json, video_info):
+    def __init__(self, parent, full_json, res_json, extra_info):
         self.parent = parent
         self.full_json = full_json
         self.res_json = res_json
-        self.video_info = video_info
+        self.extra_info = extra_info
 
         self._videosize = -1
         self._audiosize = -1
+
+        self._video_len = -1
 
         self._target_video_urls = []
         self._target_audio_urls = []
@@ -161,16 +163,16 @@ class BasicRespond:
         return 'Unknown'
 
     def getVideoTitle(self):
-        return self.video_info.title
+        return self.extra_info.title
 
     def getRangeFormat(self):
         return 'Range: bytes=%d-%d'
 
     def getBaseUrl(self):
-        return self.video_info.url
+        return self.extra_info.base_url
 
     def getQuality(self):
-        return self.video_info.quality
+        return self.extra_info.quality
 
     def getScreenSize(self):
         return None
@@ -197,11 +199,17 @@ class BasicRespond:
         }
 
     def getConcatMerger(self):
-        return cv.MERGER_SIMPLE
+        return cv.MERGER_FFMPEG
 
 
     def getAllAudioInfo(self):
         return []
+
+    def getVideoTimeLength(self):
+        """    ms  """
+        return self._video_len
+
+
 
 
     def getFeatures(self):
@@ -218,9 +226,13 @@ class BasicRespond:
         return '[%s]-(%s)-(%s)' % (self.getQuality(), self.getScreenSize(), format_byte(self.getTotalFileSize()))
 
 
+    def getVideoLegalTitle(self):
+        return re.sub('[\\/:\?<>\|\*"]', ' ', self.getVideoTitle())
+
+
 class BasicVideoInfo:
-    def __init__(self, url, title, quality, **extra_info):
-        self.url = url
+    def __init__(self, base_url, title, quality, **extra_info):
+        self.base_url = base_url
         self.title = title
         self.quality = quality
         self.extra_info = extra_info

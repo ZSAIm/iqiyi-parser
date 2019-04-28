@@ -43,8 +43,8 @@ class ErrorCounter(object):
     _404__THRESHOLD = 5
     _302__THRESHOLD = 20
 
-    RECV_TIMEOUT_THRESHOLD = 5
-    SOCKET_ERROR_THRESHOLD = 5
+    RECV_TIMEOUT_THRESHOLD = 10
+    SOCKET_ERROR_THRESHOLD = 10
 
     def __init__(self):
         self._404_ = 0
@@ -182,13 +182,9 @@ class Processor(object):
         sock, buff = self.makeSocket()
 
         if not sock:
-            # msg = 'SocketNotBuilt: ->rerun.'
-            # extra = {'progress': '%-10d-%10d' % (self.progress.begin, self.progress.end),
-            #          'urlid': self.urlid}
-            # logger.warning(msg, extra=extra)
 
             self.error_counter.socket_error += 1
-            time.sleep(2)
+            time.sleep(0.5)
             self.run()
             return
         else:
@@ -202,8 +198,12 @@ class Processor(object):
                 self.__206__(sock, buff)
             elif status == 302:
                 self.__302__(sock)
+            elif status == 405:
+                self.__405__(sock)
             elif status == 404:
                 self.__404__(sock)
+            # elif status == 416:
+            #     self.__416__(sock)
             elif status != 206 and status != 200:
                 self.__404__(sock)
 
@@ -224,7 +224,7 @@ class Processor(object):
             if self.target.protocol == 'https':
                 sock = ssl.wrap_socket(socket.socket())
 
-                # ssl.SSLError: [SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure (_ssl.c:646)
+                # ssl.SSLError: [SSL: SSLV3_ALERT_HANDSHAKE_FAILURE] sslv3 alert handshake failure
                 sock.server_hostname = self.target.host
             elif self.target.protocol == 'http':
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -278,15 +278,29 @@ class Processor(object):
         self.progress.go(len(buff))
         self.__recv_loop__(sock, buff)
 
+    def __405__(self, sock):
+        self.getSwitch()
+        time.sleep(0.1)
+        self.run()
 
     def __404__(self, sock):
         self.error_counter._404_ += 1
+        if self.error_counter._404_ > 3:
+            self.url.reload()
 
-        self.url.reload()
-
-        time.sleep(2)
+        time.sleep(0.3)
         self.run()
 
+    def __other__(self, sock):
+        pass
+
+
+    def __416__(self, sock):
+        self.error_counter._404_ += 1
+        self.progress.go_in = 0
+        self.progress.done_inc = 0
+        time.sleep(0.1)
+        self.run()
 
 
     def __recv_loop__(self, sock, buff):
@@ -444,15 +458,12 @@ class Processor(object):
 
         self.opareq.cut = [Range[0], Range[1]]
 
-        # msg = 'CutRequest: %010d-%010d' % (Range[0], Range[1])
-        # extra = {'progress': '%-10d-%10d' % (self.progress.begin, self.progress.end),
-        #          'urlid': self.urlid}
-        # logger.info(msg, extra=extra)
         while True:
-            if (self.isReady() and not self.isRunning() and
+            if self.isEnd() or ((self.isReady() and not self.isRunning() and
                     not self.getHandler().thrpool.getThreadsFromName('Nbdler-SelfCheck')) or \
-                    not self.opareq.cut:
+                    not self.opareq.cut):
                 break
+
             time.sleep(0.1)
 
         return [self.progress.end, last_range[1]] if last_range[1] != self.progress.end else []
@@ -470,10 +481,6 @@ class Processor(object):
         if retrange:
             self.progress.globalprog.cut(self.progress, retrange)
 
-        # msg = 'GetCut: %010d-%010d' % (self.opareq.cut[0], self.opareq.cut[1])
-        # extra = {'progress': '%-10d-%10d' % (self.progress.begin, self.progress.end),
-        #          'urlid': self.urlid}
-        # logger.info(msg, extra=extra)
 
         self.opareq.cut = []
 

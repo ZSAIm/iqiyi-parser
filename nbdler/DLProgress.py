@@ -112,16 +112,19 @@ class Progress(Packer, object):
             self.length = getattr(self, 'end', 0) - getattr(self, 'begin', 0)
         elif key == 'go_inc':
             if getattr(self, 'status', None):
+                # if self.go_inc > self.length:
+                #     raise Exception('ProgressGoExceed')
                 if self.go_inc > self.length:
-                    raise Exception('ProgressGoExceed')
-                elif self.go_inc == self.length:
-                        self.endGo()
+                    self.go_inc = self.length
+                if self.go_inc == self.length:
+                    self.endGo()
                 else:
                     self.status.go_end = False
         elif key == 'done_inc':
             if getattr(self, 'status', None):
                 if self.done_inc > self.length:
-                    raise Exception('ProgressDoneExceed')
+                    self.done_inc = self.length
+                    # raise Exception('ProgressDoneExceed')
                 elif self.done_inc == self.length:
                     self.endDone()
                 else:
@@ -510,7 +513,7 @@ class GlobalProgress(Packer, object):
     def save(self):
         if not self.__packet_frame__:
             self.__packet_frame__ = self.handler.pack()
-        self.__packet_frame__['__auto_global__'] = self.pack()
+        self.__packet_frame__['__globalprog__'] = self.pack()
 
         packet = zlib.compress(str.encode(str(self.__packet_frame__)), zlib.Z_BEST_COMPRESSION)
 

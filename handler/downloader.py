@@ -46,7 +46,7 @@ class Handler:
 
         self.video_urls = res.getVideoUrls()
         self.audio_urls = res.getAudioUrls()
-        self._title = res.getVideoTitle()
+        self._title = res.getVideoLegalTitle()
         self._filenum = len(self.video_urls)
         self._ext = res.getFileFormat()
         self._range_format = res.getRangeFormat()
@@ -58,6 +58,7 @@ class Handler:
 
     def shutdown(self):
         self.dlm.shutdown()
+        self.dlm.join()
 
     def __run__(self):
         self.dlm.config(max_task=self.max_task)
@@ -66,7 +67,17 @@ class Handler:
         path = os.path.join(self.filepath, self._title)
         for i, j in enumerate(self.video_filenames):
             filepath = os.path.join(self.filepath, self._title, j)
-            if os.path.exists(filepath + '.nbdler') or not os.path.exists(filepath):
+            if os.path.exists(filepath + '.nbdler') and os.path.exists(filepath):
+                dl = nbdler.open(filepath)
+                kwargs = {
+                    'urls': [*list(self.video_urls[i])] if isinstance(self.video_urls[i], list) or isinstance(
+                        self.video_urls[i], tuple) else [self.video_urls[i]],
+                    'range_formats': [self._range_format],
+                    'headers': [self._headers],
+                }
+                dl.batchAdd(**kwargs)
+                self.dlm.addHandler(dl, name=i)
+            elif os.path.exists(filepath + '.nbdler') or not os.path.exists(filepath):
                 kwargs = {
                     'filename': j,
                     'filepath': path,
@@ -74,18 +85,30 @@ class Handler:
                     'urls': [*list(self.video_urls[i])] if isinstance(self.video_urls[i], list) or isinstance(
                         self.video_urls[i], tuple) else [self.video_urls[i]],
                     'range_formats': [self._range_format],
-                    'headers': [self._headers]
+                    'headers': [self._headers],
+                    'buffer_size': cv.BUFFER_SIZE * 1024 * 1024,
+                    'block_size': cv.BLOCK_SIZE * 1024
                 }
                 dl = nbdler.open(**kwargs)
 
                 self.dlm.addHandler(dl, name=i)
             else:
-                gui.frame_main.updateBlock(i, gui.COLOR_OK)
+                gui.frame_downloader.updateBlock(i, gui.COLOR_OK)
                 self._inc_progress += os.path.getsize(filepath)
 
         for i, j in enumerate(self.audio_filenames):
             filepath = os.path.join(self.filepath, self._title, j)
-            if os.path.exists(filepath + '.nbdler') or not os.path.exists(filepath):
+            if os.path.exists(filepath + '.nbdler') and os.path.exists(filepath):
+                dl = nbdler.open(filepath)
+                kwargs = {
+                    'urls': [*list(self.video_urls[i])] if isinstance(self.video_urls[i], list) or isinstance(
+                        self.video_urls[i], tuple) else [self.video_urls[i]],
+                    'range_formats': [self._range_format],
+                    'headers': [self._headers],
+                }
+                dl.batchAdd(**kwargs)
+                self.dlm.addHandler(dl, name=i)
+            elif os.path.exists(filepath + '.nbdler') or not os.path.exists(filepath):
                 kwargs = {
                     'filename': j,
                     'filepath': path,
@@ -93,13 +116,15 @@ class Handler:
                     'urls': [*list(self.audio_urls[i])] if isinstance(self.audio_urls[i], list) or isinstance(
                         self.audio_urls[i], tuple) else [self.audio_urls[i]],
                     'range_formats': [self._range_format],
-                    'headers': [self._headers]
+                    'headers': [self._headers],
+                    'buffer_size': cv.BUFFER_SIZE * 1024 * 1024,
+                    'block_size': cv.BLOCK_SIZE * 1024
                 }
                 dl = nbdler.open(**kwargs)
 
                 self.dlm.addHandler(dl, name=i)
             else:
-                gui.frame_main.updateBlock(len(self.video_filenames) + i, gui.COLOR_OK)
+                gui.frame_downloader.updateBlock(len(self.video_filenames) + i, gui.COLOR_OK)
                 self._inc_progress += os.path.getsize(filepath)
 
         self.dlm.run()
@@ -155,33 +180,42 @@ class Handler:
         return False
 
     def insert_new_item(self, run_queue):
-        new = list(filter(lambda x: self.dlm.getNameFromId(x) not in gui.frame_main.getItemsDict(),
+        new = list(filter(lambda x: self.dlm.getNameFromId(x) not in gui.frame_downloader.getItemsDict(),
                           run_queue))
 
         for i in new:
             dl = self.dlm.getHandler(id=i)
             size = dl.getFileSize()
-            gui.frame_main.insertItem(self.dlm.getNameFromId(i), size)
-            gui.frame_main.updateBlock(self.dlm.getNameFromId(i), gui.COLOR_RUN)
+            cur_name = self.dlm.getNameFromId(i)
+            gui.frame_downloader.insertItem(cur_name, size)
+            gui.frame_downloader.updateBlock(cur_name, gui.COLOR_RUN)
+
+        if new:
+            gui.frame_downloader.Layout()
+            # gui.frame_main.sizer_items.Layout()
 
     def delete_end_item(self, done_queue):
         end = list(filter(lambda x: self.dlm.getIdFromName(x) in done_queue,
-                          gui.frame_main.getItemsDict()))
+                          gui.frame_downloader.getItemsDict()))
 
         for i in end:
             dl = self.dlm.getHandler(name=i)
             size = dl.getFileSize()
-            item = gui.frame_main.getItem(i)
+            item = gui.frame_downloader.getItem(i)
             item.update(size, dl.getInsSpeed(), size)
-            gui.frame_main.deleteItem(i, True if len(gui.frame_main.getItemsDict()) > self.max_task else False)
-            gui.frame_main.updateBlock(i, gui.COLOR_OK)
+            gui.frame_downloader.deleteItem(i, True if len(gui.frame_downloader.getItemsDict()) > self.max_task else False)
+            gui.frame_downloader.updateBlock(i, gui.COLOR_OK)
+
+        if end:
+            gui.frame_downloader.Layout()
+            # gui.frame_main.sizer_items.Layout()
 
     def update_item(self, run_queue):
         for i in run_queue:
             dl = self.dlm.getHandler(id=i)
             inc_byte = dl.getIncByte()
             size = dl.getFileSize()
-            item = gui.frame_main.getItem(self.dlm.getNameFromId(i))
+            item = gui.frame_downloader.getItem(self.dlm.getNameFromId(i))
             if item:
                 item.update(inc_byte, dl.getInsSpeed(), size)
 
@@ -194,7 +228,7 @@ class Handler:
             dl = self.dlm.getHandler(id=i)
             cur_inc += dl.getIncByte()
 
-        gui.frame_main.updateTotal(cur_inc + self._inc_progress, self.dlm.getInsSpeed())
+        gui.frame_downloader.updateTotal(cur_inc + self._inc_progress, self.dlm.getInsSpeed())
 
     def process_event(self, event):
         done_queue = self.dlm.getDoneQueue()
@@ -206,6 +240,8 @@ class Handler:
         self.update_item(run_queue)
 
         self.update_total(run_queue, done_queue)
+
+        # gui.frame_main.Layout()
 
         if not run_queue:
             if self.is_all_files_done():
@@ -242,7 +278,8 @@ def isAllDone():
 def shutdown():
     global HANDLER, SHUTDOWN
     SHUTDOWN = True
-    HANDLER.shutdown()
+    if HANDLER:
+        HANDLER.shutdown()
 
 
 def getProcessEvent():

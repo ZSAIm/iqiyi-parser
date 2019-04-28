@@ -87,6 +87,8 @@ class UrlPool(Packer, object):
             id = self.newID()
 
         urlobj = Url(id, url, cookie, headers, host, port, path, protocol, proxy, max_thread, range_format)
+        if urlobj in self.dict.values():
+            return
         self.list.append(urlobj)
         self.dict[id] = urlobj
 
@@ -124,6 +126,8 @@ class UrlPool(Packer, object):
                 next_id = 0
             if self.id_map[next_id]:
                 break
+            else:
+                next_id += 1
         return next_id
 
     def getAllUrl(self):
@@ -132,8 +136,8 @@ class UrlPool(Packer, object):
     def getUrl(self, Urlid):
         return self.dict[Urlid]
 
-    def hasUrl(self, url):
-        return url in self.dict.keys()
+    def hasUrl(self, Url):
+        return Url in self.dict.keys()
 
     def newID(self):
         for i, j in enumerate(self.id_map):
@@ -165,7 +169,7 @@ class UrlPool(Packer, object):
 
 
     def __packet_params__(self):
-        return ['dict', 'id_map', 'max_conn', 'max_speed']
+        return ['list', 'dict', 'id_map', 'max_conn', 'max_speed']
 
     def unpack(self, packet):
         Packer.unpack(self, packet)
@@ -174,6 +178,8 @@ class UrlPool(Packer, object):
             url = Url(-1, '')
             url.unpack(j)
             self.dict[i] = url
+        # for i, j in enumerate(self.list[:]):
+        #     self.list[i] = j
 
 
 class Target(object):
@@ -244,6 +250,14 @@ class Url(Packer, object):
 
         self.range_format = range_format
 
+    def __eq__(self, other):
+        if isinstance(other, Url):
+            return self.url == other.url and \
+                self.cookie == other.cookie and \
+                self.proxy == other.proxy and \
+                self.range_format == other.range_format
+        else:
+            object.__eq__(self, other)
 
     def config(self):
         pass
@@ -323,7 +337,7 @@ class Url(Packer, object):
                 res = opener.open(req)
                 break
             except Exception as e:
-                traceback.print_exc()
+                # traceback.print_exc()
                 error_counter += 1
             time.sleep(0.5)
         else:

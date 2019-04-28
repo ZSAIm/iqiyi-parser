@@ -7,6 +7,16 @@
 
 
 ## 更新说明
+* **2019/04/28**
+	* 支持断点续传下载。
+	* 添加下载器的多种参数调节（可通过设置菜单进行修改）。
+	* 更换gui部分布局。（设置选项移到了menubar的file菜单，下载选中项移到了listctrl的右键菜单）
+	* 爱奇艺添加解析f4v资源。
+	* 修复爱奇艺f4v多线程下载进度卡住问题。
+	* 修复bilibili一部分视频无法解析问题。（至于大会员视频能不能下载还不清楚）
+	* 使用ffmpeg来对视频进行合并的操作。
+	* 加入merger框来显示ffmpeg合并进度和输出信息。
+	
 * **2019/04/25**
 	* 重构项目。
 	* 添加支持下载Bilibili视频。
@@ -14,6 +24,43 @@
 	
 * **2019/04/13**
 	* 修复下载M3U8视频多线程数据重复错误问题（由于M3U8多线程下载字段不一致问题）。
+
+
+
+## 使用说明
+
+* 打开程序 main.exe，然后自己摸索。。。
+* 目录下的"cookies/*.txt"可以导入Cookie。（爱奇艺导入iqiyi.txt，哔哩哔哩导入bilibili.txt）
+
+
+## TO-DO
+
+* [x] 加入简略GUI交互。
+* [x] 支持导入Cookie。
+* [x] 解耦解析器。
+* [x] 更换JS执行引擎。
+* [x] 修复下载器Bug。
+* [x] 优化下载器程序。
+* [x] 优化执行流程。
+
+
+
+## NOT-TO-DO
+
+* [x] 批量视频解析下载。
+
+
+## 引用项目
+
+* __``Nbdler``__: https://github.com/ZSAIm/Nbdler
+* __``PyJSCaller``__: https://github.com/ZSAIm/PyJSCaller
+
+***
+
+## 项目地址
+	github: https://github.com/ZSAIm/iqiyi-parser
+
+## 历史更新
 
 * **2019/04/12**
 	* 添加未完成任务提醒功能。
@@ -51,40 +98,3 @@
 	
 * **2018/09/07**
 	* 修复若干bug。
-
-
-## 使用说明
-
-* 打开程序 main.exe，然后自己摸索。。。
-* 目录下的"cookies/*.txt"可以导入Cookie。（爱奇艺导入iqiyi.txt，哔哩哔哩导入bilibili.txt）
-
-
-## TO-DO
-
-* [x] 加入简略GUI交互。
-* [x] 支持导入Cookie。
-* [x] 解耦解析器。
-* [x] 更换JS执行引擎。
-* [x] 修复下载器Bug。
-* [x] 优化下载器程序。
-* [x] 优化执行流程。
-
-
-## TO-DO or NOT-TO-DO
-
-* [ ] 美化GUI界面。
-
-## NOT-TO-DO
-
-* [x] 批量视频解析下载。
-
-
-## 引用项目
-
-* __``Nbdler``__: https://github.com/ZSAIm/Nbdler
-* __``PyJSCaller``__: https://github.com/ZSAIm/PyJSCaller
-
-***
-
-## 项目地址
-	github: https://github.com/ZSAIm/iqiyi-parser

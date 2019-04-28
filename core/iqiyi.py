@@ -3,7 +3,7 @@
 import time, random
 import re
 import json, os
-
+import CommonVar as cv
 from bs4 import BeautifulSoup
 from urllib.parse import unquote
 
@@ -83,7 +83,7 @@ global_params = {
 
     # new params    2019/04/05
     # 'k_ft1': '',
-    'k_ft4': '4'                                # k_ft = 4: prefer *.ts ,else *.f4v
+    # 'k_ft4': '4'                                # k_ft = 4: prefer *.ts ,else *.f4v
 }
 
 
@@ -114,17 +114,24 @@ class Iqiyi(BasicParser):
         videos_res = []
 
         for bid in bids:
-            target_url = self.makeTargetUrl(tvid, vid, bid)
+            target_ts_url, target_f4v_url = self.makeTargetUrl(tvid, vid, bid)
 
-            res_json = self.getTargetJson(target_url)
+            res_json_ts = self.getTargetJson(target_ts_url)
 
-            if not res_json:
-                continue
+            if res_json_ts:
+                extra_info_ts = BasicVideoInfo(url, BeautifulSoup(text, features='html.parser').title.string,
+                                               res_json_ts['data']['ctl']['bid'])
+                videos_res.append(IqiyiRespond(self, res_json_ts, res_json_ts, extra_info_ts))
 
-            video_info = BasicVideoInfo(url, BeautifulSoup(text, features='html.parser').title.string,
-                                        res_json['data']['ctl']['bid'])
+                if not videos_res[-1].getM3U8():
+                    continue
 
-            videos_res.append(IqiyiRespond(self, res_json, res_json, video_info))
+            res_json_f4v = self.getTargetJson(target_f4v_url)
+            if res_json_ts:
+                extra_info_f4v = BasicVideoInfo(url, BeautifulSoup(text, features='html.parser').title.string,
+                                                res_json_f4v['data']['ctl']['bid'])
+
+                videos_res.append(IqiyiRespond(self, res_json_f4v, res_json_f4v, extra_info_f4v))
 
         return videos_res
 
@@ -151,23 +158,40 @@ class Iqiyi(BasicParser):
                 'authKey': authkey(authkey('') + time_str + tvid),
             }
 
-            new_params = global_params.copy()
-            new_params.update(params)
+            ts_params = global_params.copy()
+            ts_params['k_ft4'] = '4'
+            ts_params.update(params)
 
-            querystring = require('querystring')
-            querystring.require('stringify')
-            params_encode = querystring.stringify(new_params)
+            ts_req_path = self.sess_make_req_path(sess, ts_params)
 
-            params_encode.operands.args[0].getExprText()
+            f4v_params = global_params.copy()
+            f4v_params.update(params)
 
-            req_path = '/jp/dash?' + params_encode
+            f4v_req_path = self.sess_make_req_path(sess, f4v_params)
 
-            vf = cmd5x(req_path)
+            sess.call(ts_req_path)
+            sess.call(f4v_req_path)
 
-            req_path += '&vf=' + vf
-            sess.call(req_path)
+        return ['http://cache.video.iqiyi.com/' + ts_req_path.getValue().lstrip('/'),
+                'http://cache.video.iqiyi.com/' + f4v_req_path.getValue().lstrip('/')]
 
-        return 'http://cache.video.iqiyi.com/' + req_path.getValue().lstrip('/')
+
+    def sess_make_req_path(self, sess, req_params):
+
+        querystring = sess.locals.require('querystring')
+        querystring.require('stringify')
+
+        params_encode = querystring.stringify(req_params)
+
+        params_encode.operands.args[0].getExprText()
+
+        req_path = '/jp/dash?' + params_encode
+
+        vf = sess.locals.cmd5x(req_path)
+
+        req_path += '&vf=' + vf
+        # sess.call(req_path)
+        return req_path
 
 
     def getTargetJson(self, req_url):
@@ -208,24 +232,36 @@ class IqiyiUser:
 
 
 class IqiyiRespond(BasicRespond):
-    def __init__(self, parent, full_json, res_json, video_info):
-        BasicRespond.__init__(self, parent, full_json, res_json, video_info)
+    def __init__(self, parent, full_json, res_json, extra_info):
+        BasicRespond.__init__(self, parent, full_json, res_json, extra_info)
 
         self.program = None
+
+        self._video_len = -1
 
         self._target_video_urls = []
 
         self.__extract__(res_json)
 
+
     def __extract__(self, res_json):
         self.program = res_json['data'].get('program', None)
         self.sel_video = self.get_sel_video(self.program)
+        if self.getM3U8():
+            self._target_video_urls = self.__extract_m3u8__(self.getM3U8())
+        else:
+            time_len = 0
+            for i in self.get_sel_fs():
+                time_len += i['d']
+            self._video_len = time_len
+
 
     def getRangeFormat(self):
         if self.getM3U8():
             return '&start=%d&end=%d'
         else:
-            return '&ranges=%d-%d'
+            return 'Range: bytes=%d-%d'
+            # return '&range=%d-%d'
 
     def getM3U8(self):
         return self.sel_video.get('m3u8')
@@ -241,6 +277,7 @@ class IqiyiRespond(BasicRespond):
 
     def getVideoTotal(self):
         m3u8 = self.getM3U8()
+        # return len(self._target_video_urls)
         if m3u8:
             self._target_video_urls = self.__extract_m3u8__(self.getM3U8())
             return len(self._target_video_urls)
@@ -255,7 +292,7 @@ class IqiyiRespond(BasicRespond):
             'Connection': 'keep-alive',
             'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.186 Safari/537.36',
             'Accept': '*/*',
-            'Referer': 'http://www.iqiyi.com/',
+            # 'Referer': 'http://www.iqiyi.com/',
             'Accept-Encoding': 'gzip, deflate',
             'Accept-Language': 'zh-CN,zh;q=0.9'
         }
@@ -269,11 +306,19 @@ class IqiyiRespond(BasicRespond):
         return {
             'quality': self.getQuality(),
             'screensize': self.getScreenSize(),
+            'file_format': self.getFileFormat()
         }
 
     def matchFeature(self, feature):
-        return feature['quality'] == self.getQuality() and feature['screensize'] == self.getScreenSize()
+        return feature['quality'] == self.getQuality() and \
+               feature['screensize'] == self.getScreenSize() and \
+               feature['file_format'] == self.getFileFormat()
 
+    # def getConcatMerger(self):
+    #     if self.getM3U8():
+    #         return cv.MERGER_FFMPEG
+    #     else:
+    #         return cv.MERGER_SIMPLE
 
 
     def get_sel_video(self, program):
@@ -321,18 +366,23 @@ class IqiyiRespond(BasicRespond):
 
     def __extract_m3u8__(self, m3u8):
         if m3u8:
-            m3u8_parts = re.compile('#EXTINF:\d+,\s+(http://data.video.iqiyi.com/videos/\S+)').findall(m3u8)
+            m3u8_parts = re.compile('#EXTINF:(\d+),\s+(http://data.video.iqiyi.com/videos/\S+)').findall(m3u8)
             rex_filename = re.compile('/([a-z|A-Z|0-9]+)\.([A-Z|a-z|0-9]+)\?')
 
             filenames = []
             reverse_parts = m3u8_parts[::-1]
             reverse_part_tails = []
+
+            video_len_counter = 0
             for i in reverse_parts:
-                res = rex_filename.search(i)
+                video_len_counter += int(i[0])
+
+                res = rex_filename.search(i[1])
                 if res.group(1) not in filenames:
                     filenames.append(res.group(1))
-                    reverse_part_tails.append(i)
+                    reverse_part_tails.append(i[1])
 
+            self._video_len = video_len_counter * 1000
             # complete total file
             part_tails = reverse_part_tails[::-1]
             ret = []

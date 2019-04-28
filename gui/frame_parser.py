@@ -6,11 +6,11 @@ from gui.listctrl import ListCtrl_Parser
 ID_BUTTON_PARSE_EVENT = wx.NewId()
 
 
-class DialogParser(wx.Dialog):
+class FrameParser(wx.Frame):
     def __init__(self, parent, *args):
-        wx.Dialog.__init__(self, parent, id=wx.ID_ANY, title=u'IQIYI视频解析器', pos=wx.DefaultPosition,
+        wx.Frame.__init__(self, parent, id=wx.ID_ANY, title=u'视频解析器', pos=wx.DefaultPosition,
                            size=wx.Size(420, 460), style=wx.DEFAULT_DIALOG_STYLE)
-
+        self.SetBackgroundColour(wx.Colour(240, 240, 240))
         text_resolution = wx.StaticText(self, wx.ID_ANY, u"Quality：", wx.DefaultPosition, wx.DefaultSize, 0)
         text_resolution.Wrap(-1)
 
@@ -32,28 +32,28 @@ class DialogParser(wx.Dialog):
 
         sizer_resolution = wx.BoxSizer(wx.HORIZONTAL)
         sizer_resolution.Add(text_resolution, 0, wx.ALL, 5)
-        sizer_resolution.Add(self.checkbox_1, wx.EXPAND, wx.ALIGN_CENTER |wx.ALL, 2)
-        sizer_resolution.Add(self.checkbox_2, wx.EXPAND, wx.ALIGN_CENTER |wx.ALL, 2)
-        sizer_resolution.Add(self.checkbox_3, wx.EXPAND, wx.ALIGN_CENTER |wx.ALL, 2)
-        sizer_resolution.Add(self.checkbox_4, wx.EXPAND, wx.ALIGN_CENTER |wx.ALL, 2)
-        sizer_resolution.Add(self.checkbox_5, wx.EXPAND, wx.ALIGN_CENTER |wx.ALL, 2)
-        sizer_resolution.Add(self.checkbox_6, wx.EXPAND, wx.ALIGN_CENTER |wx.ALL, 2)
+        sizer_resolution.Add(self.checkbox_1, wx.EXPAND, wx.ALIGN_CENTER |wx.ALL, 0)
+        sizer_resolution.Add(self.checkbox_2, wx.EXPAND, wx.ALIGN_CENTER |wx.ALL, 0)
+        sizer_resolution.Add(self.checkbox_3, wx.EXPAND, wx.ALIGN_CENTER |wx.ALL, 0)
+        sizer_resolution.Add(self.checkbox_4, wx.EXPAND, wx.ALIGN_CENTER |wx.ALL, 0)
+        sizer_resolution.Add(self.checkbox_5, wx.EXPAND, wx.ALIGN_CENTER |wx.ALL, 0)
+        sizer_resolution.Add(self.checkbox_6, wx.EXPAND, wx.ALIGN_CENTER |wx.ALL, 0)
 
 
         staticline1 = wx.StaticLine(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL)
         staticline2 = wx.StaticLine(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL)
         staticline4 = wx.StaticLine(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL)
-        staticline3 = wx.StaticLine(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL)
+        # staticline3 = wx.StaticLine(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LI_HORIZONTAL)
 
         text_url = wx.StaticText(self, wx.ID_ANY, u"Url", wx.DefaultPosition, wx.DefaultSize, 0)
         text_url.Wrap(-1)
 
         self.textctrl_url = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, 0)
-        self.button_parse = wx.Button(self, wx.ID_ANY, u"解析", wx.DefaultPosition, wx.DefaultSize, 0)
+        self.button_parse = wx.Button(self, wx.ID_ANY, u"解析", wx.DefaultPosition, wx.Size(80, -1), 0)
         # self.button_parse.Connect(-1, -1, ID_BUTTON_PARSE_EVENT, self.button_parse_retrycounter)
 
         sizer_url = wx.BoxSizer(wx.HORIZONTAL)
-        sizer_url.Add(text_url, 0, wx.ALIGN_CENTER | wx.ALL, 2)
+        sizer_url.Add(text_url, 0, wx.ALIGN_CENTER | wx.ALL, 5)
         sizer_url.Add(self.textctrl_url, 5, wx.ALIGN_CENTER | wx.ALL, 2)
         sizer_url.Add(self.button_parse, 0, wx.ALIGN_CENTER | wx.ALL, 2)
         # =================================================================
@@ -65,34 +65,37 @@ class DialogParser(wx.Dialog):
 
         # =================================================================
 
-        self.button_copyurl = wx.Button(self, wx.ID_ANY, u"复制下载链接", wx.DefaultPosition, wx.DefaultSize, 0)
-        self.button_godownload = wx.Button(self, wx.ID_ANY, u"下载选中项", wx.DefaultPosition, wx.DefaultSize, 0)
+        # self.button_copyurl = wx.Button(self, wx.ID_ANY, u"复制下载链接", wx.DefaultPosition, wx.DefaultSize, 0)
+        # self.button_godownload = wx.Button(self, wx.ID_ANY, u"下载选中项", wx.DefaultPosition, wx.DefaultSize, 0)
         # self.button_godownload.Enable(False)
-        sizer_control = wx.BoxSizer(wx.HORIZONTAL)
-        sizer_control.Add(self.button_copyurl, 0, wx.ALL, 5)
-        sizer_control.Add(self.button_godownload, 1, wx.ALIGN_RIGHT | wx.ALL, 5)
+        # sizer_control = wx.BoxSizer(wx.HORIZONTAL)
+        # sizer_control.Add(self.button_copyurl, 0, wx.ALL, 5)
+        # sizer_control.Add(self.button_godownload, 1, wx.ALIGN_RIGHT | wx.ALL, 5)
         # =================================================================
 
-        text_path = wx.StaticText(self, wx.ID_ANY, u"PATH：", wx.DefaultPosition, wx.DefaultSize, 0)
-        text_path.Wrap(-1)
-        self.textctrl_path = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, 0)
-        self.button_path = wx.Button(self, wx.ID_ANY, u"...", wx.DefaultPosition, wx.Size(50, -1), 0)
+        # text_path = wx.StaticText(self, wx.ID_ANY, u"PATH：", wx.DefaultPosition, wx.DefaultSize, 0)
+        # text_path.Wrap(-1)
+        # self.textctrl_path = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, 0)
+        # self.button_path = wx.Button(self, wx.ID_ANY, u"...", wx.DefaultPosition, wx.Size(50, -1), 0)
 
-        sizer_path = wx.BoxSizer(wx.HORIZONTAL)
-        sizer_path.Add(text_path, 0, wx.ALIGN_CENTER | wx.ALL, 2)
-        sizer_path.Add(self.textctrl_path, 1, wx.ALIGN_CENTER | wx.ALL, 2)
-        sizer_path.Add(self.button_path, 0, wx.ALIGN_CENTER | wx.ALL, 2)
+        # sizer_path = wx.BoxSizer(wx.HORIZONTAL)
+        # sizer_path.Add(text_path, 0, wx.ALIGN_CENTER | wx.ALL, 2)
+        # sizer_path.Add(self.textctrl_path, 1, wx.ALIGN_CENTER | wx.ALL, 2)
+        # sizer_path.Add(self.button_path, 0, wx.ALIGN_CENTER | wx.ALL, 2)
 
         sizer_global = wx.BoxSizer(wx.VERTICAL)
-        sizer_global.Add(sizer_resolution, 0, wx.EXPAND, 3)
-        sizer_global.Add(staticline1, 0, wx.EXPAND | wx.ALL, 3)
+        # sizer_global.Add(staticline1, 0, wx.EXPAND | wx.ALL, 3)
         sizer_global.Add(sizer_url, 0, wx.EXPAND, 3)
         sizer_global.Add(staticline2, 0, wx.EXPAND | wx.ALL, 3)
         sizer_global.Add(sizer_listctrl, 1, wx.EXPAND, 3)
-        sizer_global.Add(staticline3, 0, wx.EXPAND | wx.ALL, 3)
-        sizer_global.Add(sizer_control, 0, wx.EXPAND, 2)
+        # sizer_global.Add(staticline3, 0, wx.EXPAND | wx.ALL, 3)
+        # sizer_global.Add(sizer_control, 0, wx.EXPAND, 2)
         sizer_global.Add(staticline4, 0, wx.EXPAND | wx.ALL, 3)
-        sizer_global.Add(sizer_path, 0, wx.EXPAND, 0)
+        sizer_global.Add(sizer_resolution, 0, wx.EXPAND, 3)
+        # sizer_global.Add(sizer_path, 0, wx.EXPAND, 0)
+
+        self.menu_bar = ParserMenuBar(0)
+        self.SetMenuBar(self.menu_bar)
 
         self.SetSizer(sizer_global)
         self.Layout()
@@ -101,6 +104,54 @@ class DialogParser(wx.Dialog):
 
     def button_parse_retrycounter(self, event):
         self.button_parse.SetLabelText('第 %d 次重试' % event.counter)
+
+
+
+class ParserMenuBar(wx.MenuBar):
+    def __init__(self, style):
+        wx.MenuBar.__init__(self, style)
+
+        self.file = Menu_File()
+        self.help = Menu_Help()
+
+        self.Append(self.file, 'File')
+        self.Append(self.help, 'Help')
+
+
+class Menu_File(wx.Menu):
+    def __init__(self, *args):
+        wx.Menu.__init__(self, *args)
+
+        self.settings = None
+        self.exit = None
+
+        self.initMenuItems()
+
+    def initMenuItems(self):
+
+        self.settings = wx.MenuItem(self, wx.ID_ANY, 'Settings', wx.EmptyString, wx.ITEM_NORMAL)
+
+        self.exit = wx.MenuItem(self, wx.ID_ANY, 'Exit', wx.EmptyString, wx.ITEM_NORMAL)
+
+        self.Append(self.settings)
+        self.AppendSeparator()
+        self.Append(self.exit)
+
+
+class Menu_Help(wx.Menu):
+    def __init__(self, *args):
+        wx.Menu.__init__(self, *args)
+
+        self.about = None
+
+        self.initMenuItems()
+
+    def initMenuItems(self):
+        self.about = wx.MenuItem(self, wx.ID_ANY, '&About\tF1', wx.EmptyString, wx.ITEM_NORMAL)
+        self.Append(self.about)
+
+
+
 
 
 class ButtonParseRetryEvent(wx.PyEvent):
@@ -112,3 +163,8 @@ class ButtonParseRetryEvent(wx.PyEvent):
 
 
 
+# app = wx.App()
+# frame_main = FrameParser(None)
+# wx.TextEntryDialog(frame_main, 'a', 'as').ShowModal()
+# frame_main.Show()
+# app.MainLoop()

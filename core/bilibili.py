@@ -11,7 +11,7 @@ BILIBILI = None
 LASTRES = None
 
 HEADERS = {
-    'Host': 'www.bilibili.com',
+    # 'Host': 'www.bilibili.com',
     'Connection': 'keep-alive',
     'Upgrade-Insecure-Requests': '1',
     'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/73.0.3683.103 Safari/537.36',
@@ -33,7 +33,7 @@ QUALITY = {
 
 API = {
     'durl': 'https://api.bilibili.com/x/player/playurl?',
-    'dash': ''
+    'dash': 'https://api.bilibili.com/pgc/player/web/playurl?',
 }
 
 durl_params = {
@@ -43,10 +43,22 @@ durl_params = {
     'type': '',
     'otype': 'json',
     'fnver': '0',
-    'fnval': '',
+    'fnval': '0',
     'session': ''
 
 }
+
+dash_params = {
+    'avid': '',
+    'cid': '',
+    'qn': '',   # quality
+    'type': '',
+    'otype': 'json',
+    'fnver': '0',
+    'fnval': '16',
+    'session': ''
+}
+
 
 """
 r.fetchPlayurl({
@@ -59,6 +71,9 @@ r.fetchPlayurl({
     otype: "json"
 })
 """
+
+
+
 
 class Bilibili(BasicParser):
     def __init__(self):
@@ -87,23 +102,35 @@ class Bilibili(BasicParser):
                 if tmp:
                     inital_state = tmp.group(1)
 
-        playinfo_json = json.loads(playinfo)
+        playinfo_json = json.loads(playinfo) if playinfo else {}
         inital_state_json = json.loads(inital_state)
 
         video_res = []
 
+        add_params = self.get_info_dict(playinfo_json, inital_state_json, QUALITY[6])
+
+        if playinfo_json:
+            dash_full_json = playinfo_json
+            if not dash_full_json['data'].get('dash'):
+                add_params['qn'] = str(QUALITY[6])
+                dash_full_json = self.api_parse(dash_params, add_params)
+            if dash_full_json['data'].get('dash'):
+                audios_info = self.get_audios_info(url, dash_full_json)
+                for i in dash_full_json['data']['dash']['video']:
+                    extra_info = BasicVideoInfo(url, title, i['id'])
+                    video_res.append(BilibiliRespond(self, dash_full_json, i, extra_info, False, audios_info))
+            elif dash_full_json['data'].get('durl'):
+                if QUALITY[6] in qualitys:
+                    extra_info = BasicVideoInfo(url, title, dash_full_json['data']['quality'])
+                    video_res.append(BilibiliRespond(self, dash_full_json, dash_full_json['data'], extra_info, True))
+                    qualitys.remove(QUALITY[6])
+
         for i in qualitys:
-            full_json = self.durl_parse(playinfo_json, inital_state_json, i)
-            video_info = BasicVideoInfo(url, title, full_json['data']['quality'])
-            video_res.append(BilibiliRespond(self, full_json, full_json['data'], video_info, True))
-
-        if playinfo_json['data'].get('dash'):
-
-            audios_info = self.get_audios_info(url, playinfo_json)
-
-            for i in playinfo_json['data']['dash']['video']:
-                video_info = BasicVideoInfo(url, title, i['id'])
-                video_res.append(BilibiliRespond(self, playinfo_json, i, video_info, False, audios_info))
+            add_params['qn'] = str(i)
+            full_json = self.api_parse(durl_params, add_params)
+            if full_json['data']:
+                extra_info = BasicVideoInfo(url, title, full_json['data']['quality'])
+                video_res.append(BilibiliRespond(self, full_json, full_json['data'], extra_info, True))
 
         return video_res
 
@@ -126,14 +153,11 @@ class Bilibili(BasicParser):
 
             info = 'bandwidth: %10s size: %10s' % (i['bandwidth'], format_byte(size))
 
-
             audios_info.append(BasicAudioInfo(urls, size, info))
 
         return audios_info
 
-
-    def durl_parse(self, playinfo_json, inital_state_json, quality):
-        """from api: https://api.bilibili.com/x/player/playurl?"""
+    def get_info_dict(self, playinfo_json, inital_state_json, quality):
         if inital_state_json.get('videoData'):
             aid = inital_state_json['videoData']['aid']
             cid = inital_state_json['videoData']['cid']
@@ -143,19 +167,23 @@ class Bilibili(BasicParser):
         else:
             raise ValueError('unknown type')
 
-        session = playinfo_json['session']
+        session = playinfo_json.get('session', '')
 
-        req_params = durl_params.copy()
-
-        new_params = {
+        _params = {
             'avid': str(aid),
             'cid': str(cid),
             'qn': str(quality),  # quality
             'session': str(session)
         }
 
-        req_params.update(new_params)
+        return _params
 
+    def api_parse(self, base_params, add_params):
+        """from api: https://api.bilibili.com/x/player/playurl?
+        """
+        req_params = base_params.copy()
+
+        req_params.update(add_params)
         playurl = make_query(API['durl'], req_params)
 
         text = self.request(playurl)
@@ -164,11 +192,9 @@ class Bilibili(BasicParser):
 
 
 
-
-
 class BilibiliRespond(BasicRespond):
-    def __init__(self, parent, full_json, res_json, video_info, isdurl, audio_info=None):
-        BasicRespond.__init__(self, parent, full_json, res_json, video_info)
+    def __init__(self, parent, full_json, res_json, extra_info, isdurl, audio_info=None):
+        BasicRespond.__init__(self, parent, full_json, res_json, extra_info)
         self._videosize = -1
         self._audiosize = -1        # selected one
 
@@ -179,7 +205,10 @@ class BilibiliRespond(BasicRespond):
 
         self._audios_info = audio_info
 
+        self._video_len = -1
+
         self.__extract__()
+
 
     def __extract__(self):
         if self.isdurl:
@@ -196,6 +225,8 @@ class BilibiliRespond(BasicRespond):
                 size += i['size']
             self._videosize = size
 
+
+
         else:
             # target video urls
             if self.res_json['backupUrl']:
@@ -205,6 +236,8 @@ class BilibiliRespond(BasicRespond):
 
             # video size
             self._videosize = self._get_file_size_from_url_(self._target_video_urls[0][0])
+
+        self._video_len = self.full_json['data']['timelength']
 
 
     def getVideoTotal(self):
@@ -224,7 +257,10 @@ class BilibiliRespond(BasicRespond):
 
     def getFileFormat(self):
         if self.isdurl:
-            return 'flv'
+            if 'flv' in self.res_json['format']:
+                return 'flv'
+            else:
+                return self.res_json['format'].replace('/', '').replace('\\', '')
         if CONTENT_TYPE_MAP.get(self.res_json['mimeType'].strip()):
             return CONTENT_TYPE_MAP.get(self.res_json['mimeType'].strip())
         else:
@@ -249,7 +285,7 @@ class BilibiliRespond(BasicRespond):
             'Accept-Encoding': 'gzip, deflate, br',
             'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
             'Range': 'bytes=0-0',
-            'Referer': self.video_info.url,
+            'Referer': self.getBaseUrl(),
         }
 
     def setSelAudio(self, index):
@@ -278,6 +314,7 @@ class BilibiliRespond(BasicRespond):
         return feature['quality'] == self.getQuality() and feature['screensize'] == self.getScreenSize()
 
 
+
     def _get_file_size_from_url_(self, url):
         res = self.parent.requestRaw(url=url, headers=self.getReqHeaders())
         return int(res.info().get('Content-Range').split('/')[-1])
@@ -289,13 +326,15 @@ def init():
     BILIBILI = Bilibili()
     load_cookie()
 
-def parse(url, qualitys):
-    global BILIBILI, QUALITY
-    return BILIBILI.parse(url, [QUALITY[i] for i in qualitys])
 
-def matchParse(url, quality, features):
+def parse(base_url, qualitys):
+    global BILIBILI, QUALITY
+    return BILIBILI.parse(base_url, [QUALITY[i] for i in qualitys])
+
+
+def matchParse(base_url, quality, features):
     global BILIBILI
-    res = BILIBILI.parse(url, [quality])
+    res = BILIBILI.parse(base_url, [quality])
     for i in res:
         if i.matchFeature(features):
             return i
@@ -320,8 +359,7 @@ def load_cookie():
 
 if __name__ == '__main__':
     init()
-
-    res = parse('https://www.bilibili.com/video/av49951276', [1, 2, 3, 4, 5, 6])
-
+    load_cookie()
+    
     print(1)
     pass

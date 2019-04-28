@@ -38,6 +38,8 @@ def saveConfig():
 
     config.set('Settings', 'max_task_num', str(cv.MAX_TASK))
     config.set('Settings', 'max_thread_num', str(cv.MAX_CONN))
+    config.set('Settings', 'buffer_size', str(cv.BUFFER_SIZE))
+    config.set('Settings', 'block_size', str(cv.BLOCK_SIZE))
     config.set('Settings', 'last_save_path', str(cv.FILEPATH))
     config.set('Settings', 'undone_job', str(cv.UNDONE_JOB))
     config.set('Settings', 'ffmpeg', str(cv.FFMPEG_PATH))
@@ -56,6 +58,8 @@ def __loadConfig__():
     try:
         cv.MAX_TASK = int(config.get('Settings', 'max_task_num'))
         cv.MAX_CONN = int(config.get('Settings', 'max_thread_num'))
+        cv.BUFFER_SIZE = int(config.get('Settings', 'buffer_size'))
+        cv.BLOCK_SIZE = int(config.get('Settings', 'block_size'))
         cv.FILEPATH = config.get('Settings', 'last_save_path')
         undonejob = config.get('Settings', 'undone_job')
         cv.FFMPEG_PATH = config.get('Settings', 'ffmpeg')
@@ -67,5 +71,5 @@ def __loadConfig__():
 def loadConfig():
     __loadConfig__()
 
-    gui.frame_parse.textctrl_path.SetValue(cv.FILEPATH)
+    # gui.frame_parse.textctrl_path.SetValue(cv.FILEPATH)
 

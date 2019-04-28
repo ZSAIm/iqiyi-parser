@@ -56,7 +56,7 @@ class Entry:
         if ToolReq.handle():
             UndoneJob.handle()
         else:
-            gui.frame_main.Destroy()
+            ShutDown.handle()
 
 class ToolReq:
     @staticmethod
@@ -64,7 +64,8 @@ class ToolReq:
         if not ToolReq.checkNode():
             return False
 
-        ToolReq.checkFfmpeg()
+        if not ToolReq.checkFfmpeg():
+            return False
         return True
 
     @staticmethod
@@ -83,10 +84,14 @@ class ToolReq:
     def checkFfmpeg():
         dlm = nbdler.Manager()
         if (not os.path.exists('ffmpeg.exe') or os.path.exists('ffmpeg.exe.nbdler')) and not os.path.exists(cv.FFMPEG_PATH):
+            dlg = wx.MessageDialog(None, u'该程序需要ffmpeg.exe才能完成工作，是否要下载？', u'提示', wx.YES_NO | wx.ICON_INFORMATION)
+            if dlg.ShowModal() != wx.ID_YES:
+                return False
+
             dl = nbdler.open(urls=[TOOL_REQ_URL['ffmpeg']],
                              max_conn=16, filename='ffmpeg.zip')
             dlm.addHandler(dl)
-            dlg = gui.DialogToolReq(gui.frame_main, u'正在下载 Ffmpeg 3.2.zip', dl.getFileSize(), dlm)
+            dlg = gui.DialogToolReq(gui.frame_downloader, u'正在下载 Ffmpeg 3.2.zip', dl.getFileSize(), dlm)
 
             dlg.Bind(wx.EVT_TIMER, ToolReq._process, dlg.timer)
             dlg.timer.Start(50, oneShot=False)
@@ -94,6 +99,7 @@ class ToolReq:
             msg = dlg.ShowModal()
             if not dlm.isEnd():
                 dlm.shutdown()
+                dlg.Destroy()
                 return False
             ToolReq.unzip_ffmpeg('ffmpeg.zip')
             if msg == wx.ID_OK:
@@ -107,16 +113,20 @@ class ToolReq:
     def checkNode():
         dlm = nbdler.Manager()
         if not os.path.exists('node.exe') or os.path.exists('node.exe.nbdler'):
+            dlg = wx.MessageDialog(None, u'该程序需要node.exe才能完成工作，是否要下载？', u'提示', wx.YES_NO | wx.ICON_INFORMATION)
+            if dlg.ShowModal() != wx.ID_YES:
+                return False
             dl = nbdler.open(urls=[TOOL_REQ_URL['node']],
                              max_conn=16, filename='node.exe')
             dlm.addHandler(dl)
-            dlg = gui.DialogToolReq(gui.frame_main, u'正在下载 Nodejs v0.12.18', dl.getFileSize(), dlm)
+            dlg = gui.DialogToolReq(gui.frame_downloader, u'正在下载 Nodejs v0.12.18', dl.getFileSize(), dlm)
 
             dlg.Bind(wx.EVT_TIMER, ToolReq._process, dlg.timer)
             dlg.timer.Start(50, oneShot=False)
             dlm.run()
             msg = dlg.ShowModal()
             dlm.shutdown()
+            dlg.Destroy()
             if msg == wx.ID_OK:
                 return True
             else:
@@ -159,7 +169,7 @@ class UndoneJob:
                     UndoneJob.do()
                 else:
                     UndoneJob.skip()
-
+                dlg.Destroy()
         else:
             FrameParser.handle()
 
@@ -171,9 +181,9 @@ class UndoneJob:
     def _do():
         def __(sel_res):
             if not sel_res:
-                gui.frame_main.Destroy()
+                ShutDown.handle()
                 return
-            if FrameParser.ButtonGoDownload.handler_audio(sel_res):
+            if FrameParser.MenuGoDownload.handler_audio(sel_res):
                 FrameDownload.handle()
             else:
                 FrameParser.handle()
@@ -198,6 +208,7 @@ class UndoneJob:
             UndoneJob.do()
         else:
             UndoneJob.skip()
+        dlg.Destroy()
 
     @staticmethod
     def skip():
@@ -211,10 +222,11 @@ class FrameParser:
 
     @staticmethod
     def handle():
-        if gui.frame_parse.ShowModal() == cv.ID_PARSER_GODOWNLOAD:
-            FrameDownload.handle()
-        else:
-            gui.frame_main.Destroy()
+        gui.frame_parse.Show()
+        # if gui.frame_parse.ShowModal() == cv.ID_PARSER_GODOWNLOAD:
+        # FrameDownload.handle()
+        # else:
+        # ShutDown.handle()
 
 
 
@@ -236,6 +248,13 @@ class FrameParser:
         def timeout():
             dlg = wx.MessageDialog(gui.frame_parse, u'请求超时,请重试！', u'错误', wx.OK | wx.ICON_ERROR)
             dlg.ShowModal()
+            dlg.Destroy()
+
+        @staticmethod
+        def empty():
+            dlg = wx.MessageDialog(gui.frame_parse, u'数据返回为空。', u'错误', wx.OK | wx.ICON_ERROR)
+            dlg.ShowModal()
+            dlg.Destroy()
 
         @staticmethod
         def _parse(url, qualitys):
@@ -244,7 +263,10 @@ class FrameParser:
             except (socket.timeout, URLError, SSLError):
                 wx.CallAfter(FrameParser.ButtonParse.timeout)
             else:
-                wx.CallAfter(FrameParser.ButtonParse.appendItem, res)
+                if not res:
+                    wx.CallAfter(FrameParser.ButtonParse.empty)
+                else:
+                    wx.CallAfter(FrameParser.ButtonParse.appendItem, res)
 
             finally:
                 wx.CallAfter(gui.frame_parse.button_parse.Enable, True)
@@ -267,7 +289,7 @@ class FrameParser:
 
                 gui.frame_parse.listctrl_parse.Append(data)
 
-            gui.frame_parse.SetTitle(res[0].getVideoTitle())
+            gui.frame_parse.SetTitle(res[0].getVideoLegalTitle())
 
 
     class ButtonPath:
@@ -278,13 +300,14 @@ class FrameParser:
             if dlg.ShowModal() == wx.ID_OK:
                 gui.frame_parse.textctrl_path.SetValue(dlg.GetPath())
                 cv.FILEPATH = dlg.GetPath()
+            dlg.Destroy()
 
 
-    class ButtonCopy:
+    class MenuCopyLinks:
         """Frame Parser Button-[Copy] Handler"""
         @staticmethod
         def handle():
-            gui.frame_parse.button_copyurl.Enable(False)
+            # gui.frame_parse.button_copyurl.Enable(False)
             index = int(gui.frame_parse.listctrl_parse.GetFirstSelected())
             if index != -1:
                 sel_res = parser.getRespond()[index]
@@ -294,23 +317,30 @@ class FrameParser:
                                            u'该视频提供了M3U8，是否复制M3U8到剪切板？\n选【No】将复制所有片段的下载地址。', u'提示',
                                            wx.YES_NO | wx.ICON_INFORMATION)
                     msg = dlg.ShowModal()
-                    threading.Thread(target=FrameParser.ButtonCopy._copy_fullurl,
+                    threading.Thread(target=FrameParser.MenuCopyLinks._copy_fullurl,
                                      args=(sel_res, msg), daemon=True).start()
+                    dlg.Destroy()
                 else:
-                    cpy_url = str('\n'.join(sel_res.getVideosFullUrl()))
+
+
+                    # for i in sel_res.getVideoUrls():
+                    #     for
+                    # [ for i in sel_res.getVideoUrls()]
+                    cpy_url = str('\n'.join(sel_res.getVideoUrls()))
                     pyperclip.copy(cpy_url)
-                    FrameParser.ButtonCopy.success()
+                    FrameParser.MenuCopyLinks.success()
 
         @staticmethod
         def success():
-            dlg = wx.MessageDialog(gui.frame_parse, u'写入到剪切板成功！', u'完成', wx.OK | wx.ICON_INFORMATION)
+            dlg = wx.MessageDialog(gui.frame_parse, u'写入到剪切板成功！', u'完成')
             dlg.ShowModal()
+            dlg.Destroy()
 
         @staticmethod
         def timeout():
             dlg = wx.MessageDialog(gui.frame_parse, u'请求超时,请重试！', u'错误', wx.OK | wx.ICON_ERROR)
             dlg.ShowModal()
-
+            dlg.Destroy()
 
         @staticmethod
         def _copy_fullurl(sel_res, dlg_msg):
@@ -320,25 +350,25 @@ class FrameParser:
                 try:
                     cpy_url = str('\n'.join(sel_res.getVideoUrls()))
                 except (socket.timeout, URLError, SSLError):
-                    wx.CallAfter(FrameParser.ButtonCopy.timeout)
+                    wx.CallAfter(FrameParser.MenuCopyLinks.timeout)
                     return
 
             pyperclip.copy(cpy_url)
-            wx.CallAfter(gui.frame_parse.button_copyurl.Enable, True)
-            wx.CallAfter(FrameParser.ButtonCopy.success)
+            # wx.CallAfter(gui.frame_parse.button_copyurl.Enable, True)
+            wx.CallAfter(FrameParser.MenuCopyLinks.success)
 
 
-    class ButtonGoDownload:
+    class MenuGoDownload:
         """Frame Parser Button-[GoDownload] Handler"""
         @staticmethod
         def handle():
-            gui.frame_parse.button_godownload.Enable(False)
+            gui.frame_parse.listctrl_parse.menu.godownload.Enable(False)
             index = gui.frame_parse.listctrl_parse.GetFirstSelected()
             if index != -1:
                 sel_res = parser.getRespond()[index]
 
-                if FrameParser.ButtonGoDownload.handler_audio(sel_res):
-                    threading.Thread(target=FrameParser.ButtonGoDownload._download, args=(sel_res,)).start()
+                if FrameParser.MenuGoDownload.handler_audio(sel_res):
+                    threading.Thread(target=FrameParser.MenuGoDownload._download, args=(sel_res,)).start()
 
         @staticmethod
         def handler_audio(sel_res):
@@ -348,8 +378,9 @@ class FrameParser:
                 if dlg.ShowModal() == wx.ID_OK:
                     index = audio_info.index(dlg.GetStringSelection())
                     sel_res.setSelAudio(index)
+                    dlg.Destroy()
                 else:
-                    gui.frame_parse.button_godownload.Enable(True)
+                    dlg.Destroy()
                     return False
 
             return True
@@ -359,18 +390,20 @@ class FrameParser:
         def timeout():
             dlg = wx.MessageDialog(gui.frame_parse, u'Msg：\"请求被服务器中止或网络超时。\"', u'错误', wx.OK | wx.ICON_ERROR)
             dlg.ShowModal()
-            gui.frame_parse.button_godownload.Enable(True)
+            dlg.Destroy()
+            # gui.frame_parse.button_godownload.Enable(True)
 
         @staticmethod
         def _download(sel_res):
             try:
                 sel_res.getVideoUrls()
             except:
-                wx.CallAfter(FrameParser.ButtonGoDownload.timeout)
+                wx.CallAfter(FrameParser.MenuGoDownload.timeout)
             else:
                 cv.SEL_RES = sel_res
-                wx.CallAfter(gui.frame_parse.EndModal, cv.ID_PARSER_GODOWNLOAD)
-
+                wx.CallAfter(FrameDownload.handle)
+            finally:
+                gui.frame_parse.listctrl_parse.menu.godownload.Enable(True)
 
 
 
@@ -378,6 +411,7 @@ class FrameDownload:
     """Frame Download Handler"""
     @staticmethod
     def handle():
+        gui.frame_parse.Hide()
         FrameDownload.Download.handle()
 
     class Download:
@@ -392,17 +426,17 @@ class FrameDownload:
         @staticmethod
         def prepare():
             downloader.prepare(cv.SEL_RES)
-            gui.frame_main.setTitleName(cv.SEL_RES.getVideoTitle())
-            gui.frame_main.initTotal(cv.SEL_RES.getTotalFileSize())
+            gui.frame_downloader.setTitleName(cv.SEL_RES.getVideoLegalTitle())
+            gui.frame_downloader.initTotal(cv.SEL_RES.getTotalFileSize())
             for i in range(cv.SEL_RES.getVideoTotal()):
-                gui.frame_main.insertBlock(i)
+                gui.frame_downloader.insertBlock(i)
 
             for i in range(cv.SEL_RES.getAudioTotal()):
-                gui.frame_main.insertBlock(i + cv.SEL_RES.getVideoTotal())
+                gui.frame_downloader.insertBlock(i + cv.SEL_RES.getVideoTotal())
 
             gui.setTimerHandler(downloader.getProcessEvent())
             gui.runTimer(300, False)
-            gui.frame_main.Show(True)
+            gui.frame_downloader.Show(True)
 
         @staticmethod
         def _download_insp():
@@ -411,12 +445,11 @@ class FrameDownload:
             if cv.SHUTDOWN:
                 url = cv.SEL_RES.getBaseUrl()
                 quality = cv.SEL_RES.getQuality()
-                title = cv.SEL_RES.getVideoTitle()
+                title = cv.SEL_RES.getVideoLegalTitle()
                 settings.setUndoneJob(url, title, quality, cv.SEL_RES.getFeatures())
 
                 settings.saveConfig()
-
-                wx.CallAfter(gui.frame_main.Destroy)
+                # wx.CallAfter(ShutDown.handle)
             else:
                 wx.CallAfter(Merge.handle)
 
@@ -426,16 +459,21 @@ class Merge:
     """Frame Download Handler"""
     @staticmethod
     def handle():
-
         if not downloader.isAllDone():
             Merge.fileNotAllFound()
         else:
+            Merge.prepare()
             Merge.do()
 
     @staticmethod
+    def prepare():
+        gui.frame_downloader.Hide()
+        gui.frame_merger.Show()
+
+    @staticmethod
     def do():
-        if downloader.getAllAudioFilePath():
-            wx.CallAfter(gui.frame_merger.Show)
+        # if downloader.getAllAudioFilePath():
+        # wx.CallAfter(gui.frame_merger.Show)
 
         threading.Thread(target=Merge._do).start()
 
@@ -448,14 +486,20 @@ class Merge:
         audio_dst = downloader.getDstAudioFilePath()
 
         if video_src:
-            mer = merger.make(video_dst, video_src, method=merger.MET_CONCAT)
-            mer.start()
-            mer.join()
+            if len(video_src) == 1:
+                shutil.move(video_src[0], video_dst)
+            else:
+                mer = merger.make(video_dst, video_src, method=merger.MET_CONCAT, merger=cv.SEL_RES.getConcatMerger())
+                mer.start()
+                mer.join()
 
         if audio_src:
-            mer = merger.make(audio_dst, audio_src, method=merger.MET_CONCAT)
-            mer.start()
-            mer.join()
+            if len(audio_src) == 1:
+                shutil.move(audio_src[0], audio_dst)
+            else:
+                mer = merger.make(audio_dst, audio_src, method=merger.MET_CONCAT, merger=cv.SEL_RES.getConcatMerger())
+                mer.start()
+                mer.join()
 
         if video_src and audio_src:
             src = [video_dst, audio_dst]
@@ -475,23 +519,27 @@ class Merge:
 
     @staticmethod
     def fail():
-        dlg = wx.MessageDialog(gui.frame_main, '发生未知错误，无法生成最终视频！', '错误', wx.OK | wx.ICON_ERROR)
+        dlg = wx.MessageDialog(gui.frame_downloader, '发生未知错误，无法生成最终视频！', '错误', wx.OK | wx.ICON_ERROR)
         dlg.ShowModal()
+        dlg.Destroy()
 
 
     @staticmethod
     def fileNotAllFound():
-        dlg = wx.MessageDialog(gui.frame_main, '未找到所有分段文件，请重启程序重试！', '错误', wx.OK | wx.ICON_ERROR)
+        dlg = wx.MessageDialog(gui.frame_downloader, '未找到所有分段文件，请重启程序重试！', '错误', wx.OK | wx.ICON_ERROR)
         dlg.ShowModal()
+        dlg.Destroy()
 
 
     @staticmethod
     def success():
-        dlg = wx.MessageDialog(gui.frame_main, u'视频已经合并完成，是否删除分段文件？', u'提示', wx.YES_NO | wx.ICON_INFORMATION)
+        cv.ALLTASKDONE = True
+        dlg = wx.MessageDialog(gui.frame_downloader, u'视频已经合并完成，是否删除分段文件？', u'提示', wx.YES_NO | wx.ICON_INFORMATION)
         if dlg.ShowModal() == wx.ID_YES:
             merger.del_src_files()
-            dlg = wx.MessageDialog(gui.frame_main, u'分段文件删除完成。', u'提示', wx.OK | wx.ICON_INFORMATION)
+            dlg = wx.MessageDialog(gui.frame_downloader, u'分段文件删除完成。', u'提示')
             dlg.ShowModal()
+        dlg.Destroy()
 
 
 
@@ -502,3 +550,63 @@ class ConfigSettings:
         settings.initConfig()
         dlg = wx.MessageDialog(gui.frame_parse, 'config.ini文件错误。', '错误', wx.OK | wx.ICON_ERROR)
         dlg.ShowModal()
+        dlg.Destroy()
+
+
+
+class ShutDown:
+    @staticmethod
+    def handle():
+        thr = threading.Thread(target=ShutDown._shutdown)
+        thr.start()
+        thr.join()
+        ShutDown.destroy_frame()
+
+    @staticmethod
+    def destroy_frame():
+        gui.frame_parse.Destroy()
+        gui.frame_downloader.Destroy()
+        gui.frame_merger.Destroy()
+
+
+    @staticmethod
+    def _shutdown():
+        cv.SHUTDOWN = True
+        merger.shutdown()
+        downloader.shutdown()
+
+
+    @staticmethod
+    def frame_parser_close(event):
+        if cv.SHUTDOWN:
+            event.Skip()
+        else:
+            gui.frame_parse.Hide()
+            ShutDown.handle()
+
+    @staticmethod
+    def frame_downloader_close(event):
+        if cv.SHUTDOWN:
+            event.Skip()
+        else:
+            dlg = wx.MessageDialog(gui.frame_downloader, u'你确定要中止下载吗？', u'提示', style=wx.YES_NO | wx.ICON_INFORMATION)
+            if dlg.ShowModal() == wx.ID_YES:
+                gui.frame_downloader.Hide()
+                ShutDown.handle()
+            dlg.Destroy()
+
+
+    @staticmethod
+    def frame_merger_close(event):
+        if cv.SHUTDOWN:
+            event.Skip()
+        else:
+            if not cv.ALLTASKDONE:
+                dlg = wx.MessageDialog(gui.frame_merger, u'你确定要中止操作吗？', u'提示', style=wx.YES_NO | wx.ICON_INFORMATION)
+                if dlg.ShowModal() == wx.ID_YES:
+                    gui.frame_merger.Hide()
+                    ShutDown.handle()
+                dlg.Destroy()
+            else:
+                gui.frame_merger.Hide()
+                ShutDown.handle()

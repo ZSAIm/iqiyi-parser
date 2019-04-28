@@ -7,101 +7,191 @@ import CommonVar as cv
 import flow
 
 def init():
-    FrameMain_Menu_File_Handler.bindEvent()
-    FrameParse_Button_Handler.bindEvent()
-    FrameMain_Menu_Help_Handler.bindEvent()
-    FrameMain_Close_Handler.bindEvent()
-    # Message_Dialog_Handler.bindEvent()
-
-def bindMenuItems(handler_parent, source_parent, items_name):
-    for i in items_name:
-        gui.frame_main.Bind(wx.EVT_MENU, getattr(handler_parent, i), getattr(source_parent, i))
+    FrameMain.bindEvent()
+    FrameParser.bindEvent()
+    FrameMerger.bindEvent()
 
 
-class FrameMain_Menu_File_Handler:
+class FrameMain:
     @staticmethod
     def bindEvent():
-        items = ('parse', 'settings', 'exit')
-        bindMenuItems(FrameMain_Menu_File_Handler, gui.frame_main.menu_bar.file, items)
-
-
-    @staticmethod
-    def parse(event):
-        pass
-
+        gui.frame_downloader.Bind(wx.EVT_CLOSE, FrameMain.win_close)
+        FrameMain.MenuBar.bindEvent()
 
     @staticmethod
-    def settings(event):
-        pass
+    def win_close(event):
+        flow.ShutDown.frame_downloader_close(event)
 
 
-    @staticmethod
-    def exit(event):
-        pass
+    class MenuBar:
+        @staticmethod
+        def bindEvent():
+            FrameMain.MenuBar.File.bineEvent()
+            FrameMain.MenuBar.Help.bindEvent()
 
-class FrameMain_Menu_Help_Handler:
-    @staticmethod
-    def bindEvent():
-        items = ('about', )
-        bindMenuItems(FrameMain_Menu_Help_Handler, gui.frame_main.menu_bar.help, items)
+        class File:
+            @staticmethod
+            def bineEvent():
+                items = ('parse', 'settings', 'exit')
+                FrameMain.MenuBar.batchBind(FrameMain.MenuBar.File, gui.frame_downloader.menu_bar.file, items)
 
+            @staticmethod
+            def parse(event):
+                pass
 
-    @staticmethod
-    def about(event):
-        dlg = gui.About_Dialog(gui.frame_main)
-        dlg.ShowModal()
-        dlg.Destroy()
+            @staticmethod
+            def settings(event):
+                dlg = gui.DialogSettings(gui.frame_parse)
+                dlg.ShowModal()
 
-
-def bindButtonEvent(handler_parent, source_parent, items_name):
-    for i in items_name:
-        gui.frame_parse.Bind(wx.EVT_BUTTON, getattr(handler_parent, i), getattr(source_parent, 'button_' + i))
-
-
-
-
-class FrameParse_Button_Handler:
-    @staticmethod
-    def bindEvent():
-        items = ('parse', 'path', 'godownload', 'copyurl')
-        bindButtonEvent(FrameParse_Button_Handler, gui.frame_parse, items)
+            @staticmethod
+            def exit(event):
+                pass
 
 
-    @staticmethod
-    def parse(event):
-        flow.FrameParser.ButtonParse.handle()
+        class Help:
+            @staticmethod
+            def bindEvent():
+                items = ('about',)
+                FrameMain.MenuBar.batchBind(FrameMain.MenuBar.Help, gui.frame_downloader.menu_bar.help, items)
 
-    @staticmethod
-    def path(event):
-        flow.FrameParser.ButtonPath.handle()
+            @staticmethod
+            def about(event):
+                dlg = gui.DialogAbout(gui.frame_downloader)
+                dlg.ShowModal()
+                dlg.Destroy()
 
-    @staticmethod
-    def godownload(event):
-        flow.FrameParser.ButtonGoDownload.handle()
-
-
-    @staticmethod
-    def copyurl(event):
-        flow.FrameParser.ButtonCopy.handle()
-
-
+        @staticmethod
+        def batchBind(handler_parent, source_parent, items_name):
+            for i in items_name:
+                gui.frame_downloader.Bind(wx.EVT_MENU, getattr(handler_parent, i), getattr(source_parent, i))
 
 
-
-class FrameMain_Close_Handler:
+class FrameParser:
     @staticmethod
     def bindEvent():
-        gui.frame_main.Bind(wx.EVT_CLOSE, FrameMain_Close_Handler.close)
+        gui.frame_parse.Bind(wx.EVT_CLOSE, FrameParser.win_close)
+        FrameParser.TextCtrl.bindEvent()
+        FrameParser.Button.bindEvent()
+        FrameParser.MemuBar.bindEvent()
 
     @staticmethod
-    def close(event):
-        def _():
-            cv.SHUTDOWN = True
-            handler.merger.shutdown()
-            handler.downloader.shutdown()
+    def win_close(event):
+        flow.ShutDown.frame_parser_close(event)
 
-        gui.frame_main.Hide()
-        threading.Thread(target=_).start()
-        event.Skip()
 
+    class TextCtrl:
+        @staticmethod
+        def bindEvent():
+            items = ('godownload', 'copylinks')
+            FrameParser.MemuBar.batchBind(FrameParser.TextCtrl, gui.frame_parse.listctrl_parse.menu, items)
+
+        @staticmethod
+        def godownload(event):
+            flow.FrameParser.MenuGoDownload.handle()
+
+        @staticmethod
+        def copylinks(event):
+            flow.FrameParser.MenuCopyLinks.handle()
+
+
+    class MemuBar:
+        @staticmethod
+        def bindEvent():
+            FrameParser.MemuBar.File.bindEvent()
+            FrameParser.MemuBar.Help.bindEvent()
+
+        class File:
+            @staticmethod
+            def bindEvent():
+                items = ('settings',)
+                FrameParser.MemuBar.batchBind(FrameParser.MemuBar.File, gui.frame_parse.menu_bar.file, items)
+
+            @staticmethod
+            def settings(event):
+                dlg = gui.DialogSettings(gui.frame_parse)
+                dlg.ShowModal()
+
+        class Help:
+            @staticmethod
+            def bindEvent():
+                items = ('about',)
+                FrameParser.MemuBar.batchBind(FrameParser.MemuBar.Help, gui.frame_parse.menu_bar.help, items)
+
+            @staticmethod
+            def about(event):
+                dlg = gui.DialogAbout(gui.frame_downloader)
+                dlg.ShowModal()
+                dlg.Destroy()
+
+        @staticmethod
+        def batchBind(handler_parent, source_parent, items_name):
+            for i in items_name:
+                gui.frame_parse.Bind(wx.EVT_MENU, getattr(handler_parent, i), getattr(source_parent, i))
+
+
+    class Button:
+        @staticmethod
+        def bindEvent():
+            items = ('parse',)
+            FrameParser.Button.batchBind(FrameParser.Button, gui.frame_parse, items)
+
+        @staticmethod
+        def parse(event):
+            flow.FrameParser.ButtonParse.handle()
+
+        @staticmethod
+        def batchBind(handler_parent, source_parent, items_name):
+            for i in items_name:
+                gui.frame_parse.Bind(wx.EVT_BUTTON, getattr(handler_parent, i), getattr(source_parent, 'button_' + i))
+
+
+
+class FrameMerger:
+    @staticmethod
+    def bindEvent():
+        gui.frame_merger.Bind(wx.EVT_CLOSE, FrameMerger.win_close)
+        FrameMerger.MenuBar.bindEvent()
+
+    @staticmethod
+    def win_close(event):
+        flow.ShutDown.frame_merger_close(event)
+
+    class MenuBar:
+        @staticmethod
+        def bindEvent():
+            FrameMerger.MenuBar.File.bineEvent()
+            FrameMerger.MenuBar.Help.bindEvent()
+
+        class File:
+            @staticmethod
+            def bineEvent():
+                items = ('exit',)
+                FrameMerger.MenuBar.batchBind(FrameMerger.MenuBar.File, gui.frame_merger.menu_bar.file, items)
+
+            @staticmethod
+            def settings(event):
+                pass
+
+            @staticmethod
+            def exit(event):
+                flow.ShutDown.handle()
+
+
+        class Help:
+            @staticmethod
+            def bindEvent():
+                items = ('about',)
+                FrameMerger.MenuBar.batchBind(FrameMerger.MenuBar.Help, gui.frame_merger.menu_bar.help, items)
+
+            @staticmethod
+            def about(event):
+                dlg = gui.DialogAbout(gui.frame_downloader)
+                dlg.ShowModal()
+                dlg.Destroy()
+
+        @staticmethod
+        def batchBind(handler_parent, source_parent, items_name):
+            for i in items_name:
+                gui.frame_merger.Bind(wx.EVT_MENU, getattr(handler_parent, i), getattr(source_parent, i))
 

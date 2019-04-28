@@ -5,7 +5,9 @@ import CommonVar as cv
 import subprocess
 import re
 import wx
-from gui.merger_output import MergerOutputAppendEvent
+from gui.frame_merger import MergerOutputAppendEvent, MergerOutputUpdateEvent
+import signal
+
 
 MERGER_SIMPLE = 'simple'
 MERGER_FFMPEG = 'ffmpeg'
@@ -22,7 +24,7 @@ MET_CONVERT_MKV = object()
 SHUTDOWN = False
 
 class SimpleBinMerger(threading.Thread):
-    def __init__(self, dst, src):
+    def __init__(self, dst, src, *args):
         threading.Thread.__init__(self)
         self.dst = dst
         self.src = src
@@ -47,13 +49,17 @@ class SimpleBinMerger(threading.Thread):
     def _progressthread(self):
         global SHUTDOWN
         while True:
-            gui.frame_main.updateMerge(self.current)
+            gui.frame_downloader.updateMerge(self.current)
             time.sleep(0.05)
             if self.current == self.total:
-                gui.frame_main.updateMerge(self.current)
+                gui.frame_downloader.updateMerge(self.current)
                 break
             if SHUTDOWN:
                 break
+
+    def shutdown(self):
+        self.join()
+
 
 
 class CustomMethod:
@@ -81,88 +87,112 @@ class Ffmpeg(threading.Thread):
         self.stdout = None
         self.stderr = None
 
+        self.proc = None
+
     def run(self):
         if self.method == MET_MERGE_VIDEO_AUDIO:
             self.make_video_audio_merge()
+        elif self.method == MET_CONCAT:
+            self.make_concat()
         else:
             self.convert_mp4()
 
     def customMethod(self):
         cmdline = self.method.getCMDLine()
 
-        proc = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True,
-                                stderr=subprocess.PIPE)
-        proc.stdin.close()
-
-        self.stdout = io.TextIOWrapper(
-            proc.stdout,
-            encoding='utf-8'
-        )
-        # somehow message comes out from stderr while not stdout
-
-        self.stderr = io.TextIOWrapper(
-            proc.stderr,
-            encoding='utf-8'
-        )
+        self.pipe_open(cmdline)
 
 
     def convert_mp4(self):
+        cmdline = '"{ffmpeg_path}" -i "{src}" -i "{audio}" -vcodec copy -acodec copy "{output}"'
         cmdline = '"ffmpeg.exe" -i "out.mp4" -c:v libx264 "out1.mp4"'
-        proc = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True,
-                                stderr=subprocess.PIPE)
-
-        self.stdout = io.TextIOWrapper(
-            proc.stdout,
-            encoding='utf-8'
-        )
-
-        self.stderr = io.TextIOWrapper(
-            proc.stderr,
-            encoding='utf-8'
-        )
-
-        proc.stdin.close()
-        self._stdout_buff = []
-        stdout_thr = threading.Thread(target=self._readerthread, args=(self.stdout, self._stdout_buff), daemon=True)
-        stdout_thr.start()
-
-        self._stderr_buff = []
-        stderr_thr = threading.Thread(target=self._readerthread, args=(self.stderr, self._stderr_buff), daemon=True)
-        stderr_thr.start()
-
-        self.handle_output(self._stderr_buff, stderr_thr)
+        self.pipe_open(cmdline)
 
 
     def handle_output(self, _buff, _thread):
-        # rex = re.compile(
-        #     'frame=\s*\s*(.*?)\s*\s*fps=\s*\s*(.*?)\s*\s*q=\s*\s*(.*?)\s*size=\s*(.*?)\s*time=\s*(.*?)\s*bitrate=\s*(.*?)\s*speed=\s*(.*)')
+        rex_prog = re.compile(
+            'frame=\s*\s*(.*?)\s*\s*'
+            'fps=\s*\s*(.*?)\s*\s*'
+            'q=\s*\s*(.*?)\s*'
+            'size=\s*(.*?)\s*'
+            'time=\s*(.*?)\s*'
+            'bitrate=\s*(.*?)\s*'
+            'speed=\s*(.*)')
+        rex_done = re.compile(
+            'video:\s*\s*(.*?)\s*\s*'
+            'audio:\s*\s*(.*?)\s*\s*'
+            'subtitle:\s*\s*(.*?)\s*'
+            'other streams:\s*(.*?)\s*'
+            'global headers:\s*(.*?)\s*'
+            'muxing overhead:\s*(.*)')
 
+        total_len = cv.SEL_RES.getVideoTimeLength()
+        start_time = time.time()
+        # last_len = 0
         next_cur = 0
+        non_monotonous_counter = 0
         while True:
+            if cv.SHUTDOWN:
+                break
             if len(_buff) > next_cur:
                 text_line = _buff[next_cur]
-                wx.PostEvent(gui.frame_merger.output, MergerOutputAppendEvent(text_line))
+                if 'Non-monotonous DTS in output stream' in text_line:
+                    non_monotonous_counter += 1
+                    if non_monotonous_counter <= 1:
+                        wx.PostEvent(gui.frame_merger.textctrl_output, MergerOutputAppendEvent(text_line))
+
+                else:
+                    if non_monotonous_counter > 1:
+                        msg = '*** 以上忽略(%d)条连续Non-monotonous信息, 视频可能存在不完整错误！ ***\n' % (non_monotonous_counter - 1)
+                        wx.PostEvent(gui.frame_merger.textctrl_output, MergerOutputAppendEvent(msg))
+                    non_monotonous_counter = 0
+                    wx.PostEvent(gui.frame_merger.textctrl_output, MergerOutputAppendEvent(text_line))
+                    time.sleep(0.01)
+
+                res = rex_prog.search(text_line)
+                if res:
+
+                    tm = time.strptime(res.group(5), '%H:%M:%S.%y')
+                    cur_len = (tm.tm_hour * 60 * 60 + tm.tm_min * 60 + tm.tm_sec) * 1000 + int(str(tm.tm_year)[2:]) * 10
+
+                    cur_byte_str = res.group(4)
+                    remain = (total_len - cur_len) / (cur_len / (time.time() - start_time))
+                    hour = int(remain / 60 / 60)
+                    minute = int((remain % (60*60)) / 60)
+                    second = int(remain % 60)
+                    remain_time_str = '%02d:%02d:%02d' % (hour, minute, second)
+                    wx.PostEvent(gui.frame_merger.gauge_progress,
+                                 MergerOutputUpdateEvent(cur_len=cur_len, total_len=total_len,
+                                                         cur_byte_str=cur_byte_str, remain_time_str=remain_time_str))
+
+                else:
+                    res = rex_done.search(text_line)
+                    if res:
+                        wx.PostEvent(gui.frame_merger.gauge_progress,
+                                     MergerOutputUpdateEvent(cur_len=total_len, total_len=total_len, cur_byte_str=str(
+                                         round(os.path.getsize(self.dst) / 1024)) + 'kb', remain_time_str='00:00:00'))
+
                 next_cur += 1
             else:
                 if not _thread.isAlive():
                     break
-            time.sleep(0.01)
+                time.sleep(0.01)
 
-    def make_video_audio_merge(self):
-        cmdline = '"{ffmpeg_path}" -i "{video}" -i "{audio}" -vcodec copy -acodec copy "{output}"'
-        cmdline = cmdline.format(video=self.src[0], audio=self.src[1], output=self.dst, ffmpeg_path=cv.FFMPEG_PATH)
-        proc = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True,
+        pass
+
+    def pipe_open(self, cmdline):
+        self.proc = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True,
                                 stderr=subprocess.PIPE)
 
-        proc.stdin.close()
+        self.proc.stdin.close()
 
         self.stdout = io.TextIOWrapper(
-            proc.stdout,
+            self.proc.stdout,
             encoding='utf-8'
         )
 
         self.stderr = io.TextIOWrapper(
-            proc.stderr,
+            self.proc.stderr,
             encoding='utf-8'
         )
 
@@ -175,6 +205,17 @@ class Ffmpeg(threading.Thread):
         stderr_thr.start()
 
         self.handle_output(self._stderr_buff, stderr_thr)
+
+    def make_video_audio_merge(self):
+        cmdline = '"{ffmpeg_path}" -i "{video}" -i "{audio}" -vcodec copy -acodec copy "{output}"'
+        cmdline = cmdline.format(video=self.src[0], audio=self.src[1], output=self.dst, ffmpeg_path=cv.FFMPEG_PATH)
+        self.pipe_open(cmdline)
+
+    def make_concat(self):
+        videos = '|'.join([i for i in self.src])
+        cmdline = '"{ffmpeg_path}" -i concat:"{videos}" -c copy "{output}"'
+        cmdline = cmdline.format(videos=videos, output=self.dst, ffmpeg_path=cv.FFMPEG_PATH)
+        self.pipe_open(cmdline)
 
     def getSource(self):
         return self.src
@@ -190,6 +231,18 @@ class Ffmpeg(threading.Thread):
             buffer.append(out)
         fh.close()
 
+    def shutdown(self):
+        cmdline = 'taskkill /pid {pid} -t -f'.format(pid=self.proc.pid)
+        proc = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True,
+                                     stderr=subprocess.PIPE)
+        a = proc.communicate()
+        # os.kill(0, signal.SIGQUIT)
+        # signal.SIGQUIT
+        # self.proc.send_signal(signal.CTRL_C_EVENT)
+        self.proc.kill()
+        self.proc.terminate()
+
+
 
 MERGER = {
     'ffmpeg': Ffmpeg,
@@ -202,15 +255,11 @@ MER_TASK = []
 
 
 
-def make(dst, src, method):
+def make(dst, src, method, merger='ffmpeg'):
     global MER_TASK
     if method == MET_CONCAT:
-        sel_merger = MERGER['simple']
-        task = sel_merger(dst, src)
-
-        wx.CallAfter(gui.frame_main.initTotal_Merge, len(src))
-
-        threading.Thread(target=task._progressthread).start()
+        sel_merger = MERGER[merger]
+        task = sel_merger(dst, src, method)
     elif method == MET_MERGE_VIDEO_AUDIO:
         sel_merger = MERGER['ffmpeg']
         task = sel_merger(dst, src, MET_MERGE_VIDEO_AUDIO)
@@ -218,14 +267,16 @@ def make(dst, src, method):
         sel_merger = MERGER['ffmpeg']
         task = sel_merger(dst, src, method)
     MER_TASK.append(task)
-
+    # wx.CallAfter(gui.frame_main.initTotal_Merge, len(src))
     return task
 
 
 def shutdown():
     global SHUTDOWN
-    join()
     SHUTDOWN = True
+    for i in MER_TASK:
+        i.shutdown()
+    join()
 
 def isClosed():
     global SHUTDOWN
@@ -237,7 +288,7 @@ def del_src_files():
         for j in i.getSource():
             os.remove(os.path.join(cv.FILEPATH, j).lstrip('/').lstrip('\\'))
 
-    os.removedirs(os.path.join(cv.FILEPATH, cv.SEL_RES.getVideoTitle()))
+    os.removedirs(os.path.join(cv.FILEPATH, cv.SEL_RES.getVideoLegalTitle()))
 
 
 def join():

@@ -10,11 +10,11 @@ class DialogToolReq(wx.Dialog):
                            style=wx.DEFAULT_DIALOG_STYLE)
         self.SetSizeHints(wx.DefaultSize, wx.DefaultSize)
 
-        global_sizer = wx.BoxSizer(wx.VERTICAL)
+        self.global_sizer = wx.BoxSizer(wx.VERTICAL)
 
         self.gauge_progress = wx.Gauge(self, wx.ID_ANY, 10000, wx.DefaultPosition, wx.DefaultSize, wx.GA_HORIZONTAL)
         self.gauge_progress.SetValue(524)
-        global_sizer.Add(self.gauge_progress, 0, wx.ALL | wx.EXPAND, 5)
+        self.global_sizer.Add(self.gauge_progress, 0, wx.ALL | wx.EXPAND, 5)
 
         sizer_info = wx.BoxSizer(wx.HORIZONTAL)
 
@@ -33,11 +33,11 @@ class DialogToolReq(wx.Dialog):
 
         sizer_info.Add(self.text_progress, 1, wx.ALIGN_RIGHT | wx.ALL, 5)
 
-        global_sizer.Add(sizer_info, 1, wx.EXPAND, 5)
+        self.global_sizer.Add(sizer_info, 1, wx.EXPAND, 5)
 
-        self.SetSizer(global_sizer)
+        self.SetSizer(self.global_sizer)
         self.Layout()
-        global_sizer.Fit(self)
+        self.global_sizer.Fit(self)
 
         self.Centre(wx.BOTH)
         self.Bind(wx.EVT_CLOSE, self.onClose)
@@ -59,7 +59,7 @@ class DialogToolReq(wx.Dialog):
             self.text_progress.SetLabelText(text_progress)
 
         self.gauge_progress.SetValue(int(percent*100))
-        self.Layout()
+        self.global_sizer.Layout()
 
     def onClose(self, event):
         dlg = wx.MessageDialog(self, u'你确定要中止下载吗？', u'提示', style=wx.YES_NO | wx.ICON_INFORMATION)

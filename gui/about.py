@@ -1,115 +1,123 @@
-# -*- coding: utf-8 -*-
 
 import wx
 import wx.adv
 
-class About_Dialog(wx.Dialog):
+class DialogAbout(wx.Dialog):
 
     def __init__(self, parent):
-        wx.Dialog.__init__(self, parent, id=wx.ID_ANY, title=u"About", pos=wx.DefaultPosition, size=wx.Size(348, 385),
-                           style=wx.DEFAULT_DIALOG_STYLE | wx.STAY_ON_TOP)
+        wx.Dialog.__init__(self, parent, id=wx.ID_ANY, title=u"About", pos=wx.DefaultPosition,
+                           size=wx.Size(350, 400), style=wx.DEFAULT_DIALOG_STYLE)
 
         self.SetSizeHints(wx.DefaultSize, wx.DefaultSize)
-        self.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW))
 
-        bSizer9 = wx.BoxSizer(wx.VERTICAL)
+        global_sizer = wx.BoxSizer(wx.VERTICAL)
+        global_sizer.SetMinSize(wx.Size(350, 350))
 
-        panel3 = wx.Panel(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize,
+        global_panel = wx.Panel(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize,
                                  wx.BORDER_RAISED | wx.TAB_TRAVERSAL)
-        panel3.SetBackgroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW))
 
-        bSizer10 = wx.BoxSizer(wx.VERTICAL)
+        sizer_panel = wx.BoxSizer(wx.VERTICAL)
+        sizer_panel.Add((0, 20), 0, wx.EXPAND, 5)
 
-        staticText181 = wx.StaticText(panel3, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition,
-                                             wx.DefaultSize, 0)
-        staticText181.Wrap(-1)
+        # **************************************  title
 
-        bSizer10.Add(staticText181, 0, wx.ALL, 5)
-
-        staticText17 = wx.StaticText(panel3, wx.ID_ANY, u"爱奇艺解析下载器", wx.DefaultPosition,
+        sizer_title = wx.BoxSizer(wx.HORIZONTAL)
+        text_title = wx.StaticText(global_panel, wx.ID_ANY, u"视频解析下载器", wx.DefaultPosition,
                                             wx.DefaultSize, wx.ALIGN_CENTER_HORIZONTAL)
-        staticText17.Wrap(-1)
-
-        staticText17.SetFont(
+        text_title.Wrap(-1)
+        text_title.SetFont(
             wx.Font(20, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD, False, wx.EmptyString))
+        sizer_title.Add(text_title, 1, wx.ALIGN_CENTER | wx.ALL, 5)
 
-        bSizer10.Add(staticText17, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        # **************************************  Supported Sites
 
-        staticText18 = wx.StaticText(panel3, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition,
-                                            wx.DefaultSize, 0)
-        staticText18.Wrap(-1)
+        sizer_support = wx.BoxSizer(wx.VERTICAL)
+        text_support = wx.StaticText(global_panel, wx.ID_ANY, u"Supported Sites", wx.DefaultPosition,
+                                             wx.DefaultSize, 0)
+        text_support.Wrap(-1)
+        text_support.SetFont(
+            wx.Font(13, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD, False, wx.EmptyString))
 
-        bSizer10.Add(staticText18, 0, wx.ALL, 5)
 
-        staticText10 = wx.StaticText(panel3, wx.ID_ANY, u"Developed by:", wx.DefaultPosition,
-                                            wx.DefaultSize, wx.ALIGN_CENTER_HORIZONTAL)
-        staticText10.Wrap(-1)
+        text_sites = wx.StaticText(global_panel, wx.ID_ANY, u"爱奇艺、哔哩哔哩", wx.DefaultPosition,
+                                             wx.DefaultSize, 0)
+        text_sites.Wrap(-1)
 
-        staticText10.SetFont(
-            wx.Font(15, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD, False, wx.EmptyString))
-
-        bSizer10.Add(staticText10, 0, wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, 5)
-
-        staticText101 = wx.StaticText(panel3, wx.ID_ANY, u"ZSAIm", wx.DefaultPosition, wx.DefaultSize,
-                                             wx.ALIGN_CENTER_HORIZONTAL)
-        staticText101.Wrap(-1)
-
-        staticText101.SetFont(
+        text_sites.SetFont(
             wx.Font(10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, False, wx.EmptyString))
 
-        bSizer10.Add(staticText101, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        sizer_support.Add(text_support, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        sizer_support.Add(text_sites, 0, wx.ALIGN_CENTER | wx.ALL, 5)
 
-        staticText19 = wx.StaticText(panel3, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition,
-                                            wx.DefaultSize, 0)
-        staticText19.Wrap(-1)
+        # **************************************  Developed by
+        sizer_develop = wx.BoxSizer(wx.VERTICAL)
 
-        bSizer10.Add(staticText19, 0, wx.ALL, 5)
+        text_develop = wx.StaticText(global_panel, wx.ID_ANY, u"Developed by:", wx.DefaultPosition,
+                                              wx.DefaultSize, 0)
+        text_develop.Wrap(-1)
 
-        staticText102 = wx.StaticText(panel3, wx.ID_ANY, u"Github:", wx.DefaultPosition, wx.DefaultSize,
-                                             wx.ALIGN_CENTER_HORIZONTAL)
-        staticText102.Wrap(-1)
+        text_develop.SetFont(
+            wx.Font(13, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD, False, wx.EmptyString))
 
-        staticText102.SetFont(
-            wx.Font(15, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD, False, wx.EmptyString))
+        text_developed_by = wx.StaticText(global_panel, wx.ID_ANY, u"ZSAIm", wx.DefaultPosition,
+                                              wx.DefaultSize, 0)
+        text_developed_by.Wrap(-1)
 
-        bSizer10.Add(staticText102, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        text_developed_by.SetFont(
+            wx.Font(10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, False, wx.EmptyString))
 
-        hyperlink1 = wx.adv.HyperlinkCtrl(panel3, wx.ID_ANY,
-                                                 u"https://github.com/ZSAIm/iqiyi-parser",
+        sizer_develop.Add(text_develop, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+        sizer_develop.Add(text_developed_by, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+
+        # **************************************  Github links
+        sizer_github = wx.BoxSizer(wx.VERTICAL)
+
+        text_github = wx.StaticText(global_panel, wx.ID_ANY, u"Github:", wx.DefaultPosition,
+                                               wx.DefaultSize, 0)
+        text_github.Wrap(-1)
+
+        text_github.SetFont(
+            wx.Font(13, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD, False, wx.EmptyString))
+
+        sizer_github.Add(text_github, 0, wx.ALIGN_CENTER | wx.ALL, 5)
+
+        link_github = wx.adv.HyperlinkCtrl(global_panel, wx.ID_ANY, u"https://github.com/ZSAIm/iqiyi-parser",
                                                  u"https://github.com/ZSAIm/iqiyi-parser", wx.DefaultPosition,
-                                                 wx.DefaultSize, wx.adv.HL_ALIGN_CENTRE | wx.adv.HL_DEFAULT_STYLE)
-        hyperlink1.SetFont(
-            wx.Font(wx.NORMAL_FONT.GetPointSize(), wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL,
-                    False, wx.EmptyString))
-        hyperlink1.SetForegroundColour(wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOW))
+                                                 wx.DefaultSize, wx.adv.HL_DEFAULT_STYLE)
+        sizer_github.Add(link_github, 0, wx.ALIGN_CENTER | wx.ALL, 5)
 
-        bSizer10.Add(hyperlink1, 0, wx.ALIGN_CENTER | wx.ALL, 5)
 
-        staticText21 = wx.StaticText(panel3, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition,
-                                            wx.DefaultSize, 0)
-        staticText21.Wrap(-1)
+        sizer_panel.Add(sizer_title, 1, wx.EXPAND, 5)
+        sizer_panel.Add((0, 20), 0, wx.EXPAND, 5)
+        sizer_panel.Add(sizer_support, 1, wx.EXPAND, 5)
+        sizer_panel.Add((0, 20), 0, wx.EXPAND, 5)
+        sizer_panel.Add(sizer_develop, 1, wx.EXPAND, 5)
+        sizer_panel.Add(sizer_github, 1, wx.EXPAND, 5)
+        sizer_panel.Add((0, 20), 1, wx.EXPAND, 5)
 
-        bSizer10.Add(staticText21, 0, wx.ALL, 5)
+        global_panel.SetSizer(sizer_panel)
+        global_panel.Layout()
+        sizer_panel.Fit(global_panel)
+        global_sizer.Add(global_panel, 1, wx.EXPAND | wx.ALL, 5)
 
-        panel3.SetSizer(bSizer10)
-        panel3.Layout()
-        bSizer10.Fit(panel3)
-        bSizer9.Add(panel3, 1, wx.EXPAND | wx.ALL, 10)
+        button_ok = wx.Button(self, wx.ID_ANY, u"OK", wx.DefaultPosition, wx.DefaultSize, 0)
+        global_sizer.Add(button_ok, 0, wx.ALIGN_CENTER | wx.ALL, 5)
 
-        button7 = wx.Button(self, wx.ID_ANY, u"OK", wx.DefaultPosition, wx.DefaultSize, 0)
-        bSizer9.Add(button7, 0, wx.ALIGN_CENTER | wx.ALL, 5)
-
-        self.Bind(wx.EVT_BUTTON, self.close, button7)
-
-        self.SetSizer(bSizer9)
+        self.SetSizer(global_sizer)
         self.Layout()
+
+        self.Bind(wx.EVT_BUTTON, self.button_close, button_ok)
 
         self.Centre(wx.BOTH)
 
-    def close(self, event):
+    def button_close(self, event):
         self.Destroy()
+
 
     def __del__(self):
         pass
 
+
+# app = wx.App()
+# About_Dialog(None).ShowModal()
 
