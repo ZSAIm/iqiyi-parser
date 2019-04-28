@@ -198,8 +198,8 @@ class BasicRespond:
             'Accept-Language': 'zh-CN,zh;q=0.9'
         }
 
-    def getConcatMerger(self):
-        return cv.MERGER_FFMPEG
+    def getConcatMethod(self):
+        return cv.MER_CONCAT_PROTOCAL
 
 
     def getAllAudioInfo(self):
@@ -208,8 +208,6 @@ class BasicRespond:
     def getVideoTimeLength(self):
         """    ms  """
         return self._video_len
-
-
 
 
     def getFeatures(self):

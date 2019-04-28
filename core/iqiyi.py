@@ -320,6 +320,9 @@ class IqiyiRespond(BasicRespond):
     #     else:
     #         return cv.MERGER_SIMPLE
 
+    def getConcatMethod(self):
+        return cv.MER_CONCAT_PROTOCAL
+
 
     def get_sel_video(self, program):
         if program:

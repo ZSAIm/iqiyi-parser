@@ -9,56 +9,50 @@ from gui.frame_merger import MergerOutputAppendEvent, MergerOutputUpdateEvent
 import signal
 
 
-MERGER_SIMPLE = 'simple'
-MERGER_FFMPEG = 'ffmpeg'
+# MERGER_SIMPLE = 'simple'
+# MERGER_FFMPEG = 'ffmpeg'
 
-MET_MERGE_VIDEO_AUDIO = object()
 
-MET_CONCAT = object()
-
-MET_CONVERT_MP4 = object()
-MET_CONVERT_FLV = object()
-MET_CONVERT_MKV = object()
 
 
 SHUTDOWN = False
 
-class SimpleBinMerger(threading.Thread):
-    def __init__(self, dst, src, *args):
-        threading.Thread.__init__(self)
-        self.dst = dst
-        self.src = src
-        self.total = len(self.src)
-        self.current = 0
-
-    def run(self):
-        threading.Thread(target=self._progressthread).start()
-        with open(self.dst, 'wb') as df:
-            for path in self.src:
-                self.current += 1
-                with open(path, 'rb') as sf:
-                    df.write(sf.read())
-        self.current = len(self.src)
-
-    def getSource(self):
-        return self.src
-
-    def getDest(self):
-        return self.dst
-
-    def _progressthread(self):
-        global SHUTDOWN
-        while True:
-            gui.frame_downloader.updateMerge(self.current)
-            time.sleep(0.05)
-            if self.current == self.total:
-                gui.frame_downloader.updateMerge(self.current)
-                break
-            if SHUTDOWN:
-                break
-
-    def shutdown(self):
-        self.join()
+# class SimpleBinMerger(threading.Thread):
+#     def __init__(self, dst, src, *args):
+#         threading.Thread.__init__(self)
+#         self.dst = dst
+#         self.src = src
+#         self.total = len(self.src)
+#         self.current = 0
+#
+#     def run(self):
+#         threading.Thread(target=self._progressthread).start()
+#         with open(self.dst, 'wb') as df:
+#             for path in self.src:
+#                 self.current += 1
+#                 with open(path, 'rb') as sf:
+#                     df.write(sf.read())
+#         self.current = len(self.src)
+#
+#     def getSource(self):
+#         return self.src
+#
+#     def getDest(self):
+#         return self.dst
+#
+#     def _progressthread(self):
+#         global SHUTDOWN
+#         while True:
+#             gui.frame_downloader.updateMerge(self.current)
+#             time.sleep(0.05)
+#             if self.current == self.total:
+#                 gui.frame_downloader.updateMerge(self.current)
+#                 break
+#             if SHUTDOWN:
+#                 break
+#
+#     def shutdown(self):
+#         self.join()
 
 
 
@@ -90,12 +84,14 @@ class Ffmpeg(threading.Thread):
         self.proc = None
 
     def run(self):
-        if self.method == MET_MERGE_VIDEO_AUDIO:
-            self.make_video_audio_merge()
-        elif self.method == MET_CONCAT:
-            self.make_concat()
-        else:
-            self.convert_mp4()
+        method_map = {
+            cv.MER_VIDEO_AUDIO: self.MergeVideoAudio,
+            cv.MER_CONCAT_PROTOCAL: self.ConcatProtocal,
+            cv.MER_CONCAT_DEMUXER: self.ConcatDemuxer
+
+        }
+
+        method_map[self.method]()
 
     def customMethod(self):
         cmdline = self.method.getCMDLine()
@@ -103,10 +99,10 @@ class Ffmpeg(threading.Thread):
         self.pipe_open(cmdline)
 
 
-    def convert_mp4(self):
-        cmdline = '"{ffmpeg_path}" -i "{src}" -i "{audio}" -vcodec copy -acodec copy "{output}"'
-        cmdline = '"ffmpeg.exe" -i "out.mp4" -c:v libx264 "out1.mp4"'
-        self.pipe_open(cmdline)
+    # def convert_mp4(self):
+        # cmdline = '"{ffmpeg_path}" -i "{src}" -i "{audio}" -vcodec copy -acodec copy "{output}"'
+        # cmdline = '"ffmpeg.exe" -i "out.mp4" -c:v libx264 "out1.mp4"'
+        # self.pipe_open(cmdline)
 
 
     def handle_output(self, _buff, _thread):
@@ -206,16 +202,27 @@ class Ffmpeg(threading.Thread):
 
         self.handle_output(self._stderr_buff, stderr_thr)
 
-    def make_video_audio_merge(self):
+    def MergeVideoAudio(self):
         cmdline = '"{ffmpeg_path}" -i "{video}" -i "{audio}" -vcodec copy -acodec copy "{output}"'
         cmdline = cmdline.format(video=self.src[0], audio=self.src[1], output=self.dst, ffmpeg_path=cv.FFMPEG_PATH)
         self.pipe_open(cmdline)
 
-    def make_concat(self):
+    def ConcatProtocal(self):
         videos = '|'.join([i for i in self.src])
         cmdline = '"{ffmpeg_path}" -i concat:"{videos}" -c copy "{output}"'
         cmdline = cmdline.format(videos=videos, output=self.dst, ffmpeg_path=cv.FFMPEG_PATH)
         self.pipe_open(cmdline)
+
+    def ConcatDemuxer(self):
+        concat_files = ["file '%s'" % i for i in self.src]
+        concat_files_str = '\n'.join(concat_files)
+        with open('concat_demuxer.txt', 'w') as f:
+            f.write(concat_files_str)
+
+        cmdline = '"{ffmpeg_path}" -f concat -safe 0 -i concat_demuxer.txt -c copy "{output}"'
+        cmdline = cmdline.format(ffmpeg_path=cv.FFMPEG_PATH, output=self.dst)
+        self.pipe_open(cmdline)
+
 
     def getSource(self):
         return self.src
@@ -244,10 +251,10 @@ class Ffmpeg(threading.Thread):
 
 
 
-MERGER = {
-    'ffmpeg': Ffmpeg,
-    'simple': SimpleBinMerger,
-}
+# MERGER = {
+#     'ffmpeg': Ffmpeg,
+#     'simple': SimpleBinMerger,
+# }
 
 
 MER_TASK = []
@@ -255,17 +262,23 @@ MER_TASK = []
 
 
 
-def make(dst, src, method, merger='ffmpeg'):
+def make(dst, src, method):
     global MER_TASK
-    if method == MET_CONCAT:
-        sel_merger = MERGER[merger]
-        task = sel_merger(dst, src, method)
-    elif method == MET_MERGE_VIDEO_AUDIO:
-        sel_merger = MERGER['ffmpeg']
-        task = sel_merger(dst, src, MET_MERGE_VIDEO_AUDIO)
-    else:
-        sel_merger = MERGER['ffmpeg']
-        task = sel_merger(dst, src, method)
+    # if method == MET_CONCAT:
+    #     # sel_merger = MERGER[merger]
+    #     sel_merger = Ffmpeg
+    #     task = sel_merger(dst, src, method)
+    # elif method == MET_MERGE_VIDEO_AUDIO:
+    #     # sel_merger = MERGER['ffmpeg']
+    #     sel_merger = Ffmpeg
+    #     task = sel_merger(dst, src, MET_MERGE_VIDEO_AUDIO)
+    # else:
+    #     # sel_merger = MERGER['ffmpeg']
+    #     sel_merger = Ffmpeg
+    #     task = sel_merger(dst, src, method)
+
+    task = Ffmpeg(dst, src, method)
+
     MER_TASK.append(task)
     # wx.CallAfter(gui.frame_main.initTotal_Merge, len(src))
     return task

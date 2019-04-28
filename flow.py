@@ -489,7 +489,8 @@ class Merge:
             if len(video_src) == 1:
                 shutil.move(video_src[0], video_dst)
             else:
-                mer = merger.make(video_dst, video_src, method=merger.MET_CONCAT, merger=cv.SEL_RES.getConcatMerger())
+                # mer = merger.make(video_dst, video_src, method=merger.MET_CONCAT, merger=cv.SEL_RES.getConcatMerger())
+                mer = merger.make(video_dst, video_src, cv.SEL_RES.getConcatMethod())
                 mer.start()
                 mer.join()
 
@@ -497,14 +498,16 @@ class Merge:
             if len(audio_src) == 1:
                 shutil.move(audio_src[0], audio_dst)
             else:
-                mer = merger.make(audio_dst, audio_src, method=merger.MET_CONCAT, merger=cv.SEL_RES.getConcatMerger())
+                # mer = merger.make(audio_dst, audio_src, method=merger.MET_CONCAT, merger=cv.SEL_RES.getConcatMerger())
+                mer = merger.make(audio_dst, audio_src, cv.MER_CONCAT_DEMUXER)
                 mer.start()
                 mer.join()
 
         if video_src and audio_src:
             src = [video_dst, audio_dst]
             dst = downloader.getDstFilePath()
-            mer = merger.make(dst, src, method=merger.MET_MERGE_VIDEO_AUDIO)
+            mer = merger.make(dst, src, cv.MER_VIDEO_AUDIO)
+
             mer.start()
             mer.join()
 

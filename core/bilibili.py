@@ -5,7 +5,7 @@ from core.common import BasicParser, BasicRespond, BasicVideoInfo, BasicAudioInf
 from bs4 import BeautifulSoup
 import re
 import json
-
+import CommonVar as cv
 
 BILIBILI = None
 LASTRES = None
@@ -313,7 +313,8 @@ class BilibiliRespond(BasicRespond):
     def matchFeature(self, feature):
         return feature['quality'] == self.getQuality() and feature['screensize'] == self.getScreenSize()
 
-
+    def getConcatMethod(self):
+        return cv.MER_CONCAT_DEMUXER
 
     def _get_file_size_from_url_(self, url):
         res = self.parent.requestRaw(url=url, headers=self.getReqHeaders())

@@ -21,12 +21,24 @@ UNDONE_JOB = ''
 
 
 # merge
-MERGER_SIMPLE = 'simple'
-MERGER_FFMPEG = 'ffmpeg'
+# MERGER_SIMPLE = 'simple'
+# MERGER_FFMPEG = 'ffmpeg'
 
 
 FFMPEG_PATH = ''
 
+
+MER_VIDEO_AUDIO = object()
+
+MER_CONCAT_SIMPLE = object()
+
+MER_CONCAT_DEMUXER = object()
+MER_CONCAT_PROTOCAL = object()
+
+
+MER_CONVERT_MP4 = object()
+MER_CONVERT_FLV = object()
+MER_CONVERT_MKV = object()
 
 
 
