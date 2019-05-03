@@ -242,7 +242,7 @@ class Processor(object):
             buff = sock.recv(1024)
         except Exception as e:
             # print(e.args)
-            traceback.print_exc()
+            # traceback.print_exc()
             self.error_counter.socket_error += 1
             sock = None
         else:
@@ -483,6 +483,11 @@ class Processor(object):
 
 
         self.opareq.cut = []
+
+
+    # def __str__(self):
+    #     return
+
 
 
 def parse_headers(http_msg):

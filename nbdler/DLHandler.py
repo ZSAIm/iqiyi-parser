@@ -90,7 +90,7 @@ class Handler(Packer, object):
 
         put_urlid = self.globalprog.allotter.assignUrlid() if not Urlid else Urlid
         if put_urlid != -1:
-
+            print('fs_insert')
             self.globalprog.fs.insert(begin, end)
 
             for i in self.globalprog.allotter.splitRange((begin, end), thread_num):

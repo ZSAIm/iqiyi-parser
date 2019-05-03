@@ -66,15 +66,13 @@ class Inspector(object):
                         break
 
                     ask_urlid, ask_range = self.allotter.assign()
-                    if ask_urlid != -1:
+                    if ask_urlid != -1 and ask_range:
                         ask_range = self.globalprog.askCut(ask_range)
                         if ask_range:
+                            # print('ask_range: ', ask_range)
                             progress = self.globalprog.insert(ask_urlid, *ask_range)
-                            # msg = 'Insert: %010d-%010d, [%d]' % (ask_range[0], ask_range[1], ask_urlid)
-                            # extra = {'progress': '%010s-%010s' % ('..........', '..........'), 'urlid': '.'}
-                            # logger.info(msg, extra=extra)
                             progress.run()
-            time.sleep(2)
+            time.sleep(1.5)
 
     # def __limiter__(self):
     #     while True:

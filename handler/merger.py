@@ -6,59 +6,11 @@ import subprocess
 import re
 import wx
 from gui.frame_merger import MergerOutputAppendEvent, MergerOutputUpdateEvent
-import signal
 
-
-MERGER_SIMPLE = 'simple'
-MERGER_FFMPEG = 'ffmpeg'
-
-MET_MERGE_VIDEO_AUDIO = object()
-
-MET_CONCAT = object()
-
-MET_CONVERT_MP4 = object()
-MET_CONVERT_FLV = object()
-MET_CONVERT_MKV = object()
 
 
 SHUTDOWN = False
 
-class SimpleBinMerger(threading.Thread):
-    def __init__(self, dst, src, *args):
-        threading.Thread.__init__(self)
-        self.dst = dst
-        self.src = src
-        self.total = len(self.src)
-        self.current = 0
-
-    def run(self):
-        threading.Thread(target=self._progressthread).start()
-        with open(self.dst, 'wb') as df:
-            for path in self.src:
-                self.current += 1
-                with open(path, 'rb') as sf:
-                    df.write(sf.read())
-        self.current = len(self.src)
-
-    def getSource(self):
-        return self.src
-
-    def getDest(self):
-        return self.dst
-
-    def _progressthread(self):
-        global SHUTDOWN
-        while True:
-            gui.frame_downloader.updateMerge(self.current)
-            time.sleep(0.05)
-            if self.current == self.total:
-                gui.frame_downloader.updateMerge(self.current)
-                break
-            if SHUTDOWN:
-                break
-
-    def shutdown(self):
-        self.join()
 
 
 
@@ -90,12 +42,14 @@ class Ffmpeg(threading.Thread):
         self.proc = None
 
     def run(self):
-        if self.method == MET_MERGE_VIDEO_AUDIO:
-            self.make_video_audio_merge()
-        elif self.method == MET_CONCAT:
-            self.make_concat()
-        else:
-            self.convert_mp4()
+        method_map = {
+            cv.MER_VIDEO_AUDIO: self.MergeVideoAudio,
+            cv.MER_CONCAT_PROTOCAL: self.ConcatProtocal,
+            cv.MER_CONCAT_DEMUXER: self.ConcatDemuxer
+
+        }
+
+        method_map[self.method]()
 
     def customMethod(self):
         cmdline = self.method.getCMDLine()
@@ -103,10 +57,10 @@ class Ffmpeg(threading.Thread):
         self.pipe_open(cmdline)
 
 
-    def convert_mp4(self):
-        cmdline = '"{ffmpeg_path}" -i "{src}" -i "{audio}" -vcodec copy -acodec copy "{output}"'
-        cmdline = '"ffmpeg.exe" -i "out.mp4" -c:v libx264 "out1.mp4"'
-        self.pipe_open(cmdline)
+    # def convert_mp4(self):
+        # cmdline = '"{ffmpeg_path}" -i "{src}" -i "{audio}" -vcodec copy -acodec copy "{output}"'
+        # cmdline = '"ffmpeg.exe" -i "out.mp4" -c:v libx264 "out1.mp4"'
+        # self.pipe_open(cmdline)
 
 
     def handle_output(self, _buff, _thread):
@@ -170,7 +124,8 @@ class Ffmpeg(threading.Thread):
                     if res:
                         wx.PostEvent(gui.frame_merger.gauge_progress,
                                      MergerOutputUpdateEvent(cur_len=total_len, total_len=total_len, cur_byte_str=str(
-                                         round(os.path.getsize(self.dst) / 1024)) + 'kb', remain_time_str='00:00:00'))
+                                         round(os.path.getsize(self.dst + cv.TARGET_FORMAT) / 1024)) + 'kb',
+                                                             remain_time_str='00:00:00'))
 
                 next_cur += 1
             else:
@@ -206,16 +161,27 @@ class Ffmpeg(threading.Thread):
 
         self.handle_output(self._stderr_buff, stderr_thr)
 
-    def make_video_audio_merge(self):
-        cmdline = '"{ffmpeg_path}" -i "{video}" -i "{audio}" -vcodec copy -acodec copy "{output}"'
-        cmdline = cmdline.format(video=self.src[0], audio=self.src[1], output=self.dst, ffmpeg_path=cv.FFMPEG_PATH)
+    def MergeVideoAudio(self):
+        cmdline = '"{ffmpeg_path}" -i "{video}" -i "{audio}" -vcodec copy -acodec copy "{output}{ext}"'
+        cmdline = cmdline.format(video=self.src[0], audio=self.src[1], output=self.dst, ffmpeg_path=cv.FFMPEG_PATH, ext=cv.TARGET_FORMAT)
         self.pipe_open(cmdline)
 
-    def make_concat(self):
+    def ConcatProtocal(self):
         videos = '|'.join([i for i in self.src])
-        cmdline = '"{ffmpeg_path}" -i concat:"{videos}" -c copy "{output}"'
-        cmdline = cmdline.format(videos=videos, output=self.dst, ffmpeg_path=cv.FFMPEG_PATH)
+        cmdline = '"{ffmpeg_path}" -i concat:"{videos}" -c copy "{output}{ext}"'
+        cmdline = cmdline.format(videos=videos, output=self.dst, ffmpeg_path=cv.FFMPEG_PATH, ext=cv.TARGET_FORMAT)
         self.pipe_open(cmdline)
+
+    def ConcatDemuxer(self):
+        concat_files = ["file '%s'" % i for i in self.src]
+        concat_files_str = '\n'.join(concat_files)
+        with open('concat_demuxer.txt', 'w') as f:
+            f.write(concat_files_str)
+
+        cmdline = '"{ffmpeg_path}" -f concat -safe 0 -i concat_demuxer.txt -c copy "{output}{ext}"'
+        cmdline = cmdline.format(ffmpeg_path=cv.FFMPEG_PATH, output=self.dst, ext=cv.TARGET_FORMAT)
+        self.pipe_open(cmdline)
+
 
     def getSource(self):
         return self.src
@@ -236,18 +202,10 @@ class Ffmpeg(threading.Thread):
         proc = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True,
                                      stderr=subprocess.PIPE)
         a = proc.communicate()
-        # os.kill(0, signal.SIGQUIT)
-        # signal.SIGQUIT
-        # self.proc.send_signal(signal.CTRL_C_EVENT)
+
         self.proc.kill()
         self.proc.terminate()
 
-
-
-MERGER = {
-    'ffmpeg': Ffmpeg,
-    'simple': SimpleBinMerger,
-}
 
 
 MER_TASK = []
@@ -255,19 +213,12 @@ MER_TASK = []
 
 
 
-def make(dst, src, method, merger='ffmpeg'):
+def make(dst, src, method):
     global MER_TASK
-    if method == MET_CONCAT:
-        sel_merger = MERGER[merger]
-        task = sel_merger(dst, src, method)
-    elif method == MET_MERGE_VIDEO_AUDIO:
-        sel_merger = MERGER['ffmpeg']
-        task = sel_merger(dst, src, MET_MERGE_VIDEO_AUDIO)
-    else:
-        sel_merger = MERGER['ffmpeg']
-        task = sel_merger(dst, src, method)
+
+    task = Ffmpeg(dst, src, method)
+
     MER_TASK.append(task)
-    # wx.CallAfter(gui.frame_main.initTotal_Merge, len(src))
     return task
 
 

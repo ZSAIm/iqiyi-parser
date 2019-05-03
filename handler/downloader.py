@@ -4,9 +4,15 @@ import os, threading
 import nbdler
 import gui
 import CommonVar as cv
+from core.common import BasicUrlGroup
 
 SHUTDOWN = False
 HANDLER = None
+
+
+
+
+
 
 class Handler:
     def __init__(self):
@@ -22,7 +28,7 @@ class Handler:
 
         self._res = None
         self._title = None
-        self._filenum = 0
+        # self._filenum = 0
         self._ext = ''
         self.video_filenames = []
         self.audio_filenames = []
@@ -47,7 +53,7 @@ class Handler:
         self.video_urls = res.getVideoUrls()
         self.audio_urls = res.getAudioUrls()
         self._title = res.getVideoLegalTitle()
-        self._filenum = len(self.video_urls)
+        # self._filenum = len(self.video_urls)
         self._ext = res.getFileFormat()
         self._range_format = res.getRangeFormat()
         self._headers = res.getReqHeaders()
@@ -60,72 +66,111 @@ class Handler:
         self.dlm.shutdown()
         self.dlm.join()
 
+    def add_handler(self, dlm, urls, path, name, dlm_name=None):
+        group_done_flag = True
+        filepath = os.path.join(path, name)
+        if os.path.exists(filepath + '.nbdler') and os.path.exists(filepath):
+
+            group_done_flag = False
+            dl = nbdler.open(filepath)
+            kwargs = {
+                'urls': [*list(urls)] if isinstance(urls, list) or isinstance(
+                    urls, tuple) else [urls],
+                'range_formats': [self._range_format],
+                'headers': [self._headers],
+            }
+            dl.batchAdd(**kwargs)
+            # dlm.addHandler(dl, name=index)
+            dlm.addHandler(dl)
+
+        elif os.path.exists(filepath + '.nbdler') or not os.path.exists(filepath):
+            group_done_flag = False
+            # for mul_url in self.video_urls:
+
+            kwargs = {
+                'filename': name,
+                'filepath': path,
+                'max_conn': self.max_conn,
+                'urls': [*list(urls)] if isinstance(urls, list) or isinstance(
+                    urls, tuple) else [urls],
+                'range_formats': [self._range_format],
+                'headers': [self._headers],
+                'buffer_size': cv.BUFFER_SIZE * 1024 * 1024,
+                'block_size': cv.BLOCK_SIZE * 1024
+            }
+            dl = nbdler.open(**kwargs)
+            # dlm.addHandler(dl, name=index)
+            if dlm_name is not None:
+                dlm.addHandler(dl, name=dlm_name)
+            else:
+                dlm.addHandler(dl)
+        else:
+            self._inc_progress += os.path.getsize(filepath)
+
+        return group_done_flag
+
     def __run__(self):
         self.dlm.config(max_task=self.max_task)
 
         self.generate_name()
         path = os.path.join(self.filepath, self._title)
-        for i, j in enumerate(self.video_filenames):
-            filepath = os.path.join(self.filepath, self._title, j)
-            if os.path.exists(filepath + '.nbdler') and os.path.exists(filepath):
-                dl = nbdler.open(filepath)
-                kwargs = {
-                    'urls': [*list(self.video_urls[i])] if isinstance(self.video_urls[i], list) or isinstance(
-                        self.video_urls[i], tuple) else [self.video_urls[i]],
-                    'range_formats': [self._range_format],
-                    'headers': [self._headers],
-                }
-                dl.batchAdd(**kwargs)
-                self.dlm.addHandler(dl, name=i)
-            elif os.path.exists(filepath + '.nbdler') or not os.path.exists(filepath):
-                kwargs = {
-                    'filename': j,
-                    'filepath': path,
-                    'max_conn': self.max_conn,
-                    'urls': [*list(self.video_urls[i])] if isinstance(self.video_urls[i], list) or isinstance(
-                        self.video_urls[i], tuple) else [self.video_urls[i]],
-                    'range_formats': [self._range_format],
-                    'headers': [self._headers],
-                    'buffer_size': cv.BUFFER_SIZE * 1024 * 1024,
-                    'block_size': cv.BLOCK_SIZE * 1024
-                }
-                dl = nbdler.open(**kwargs)
 
-                self.dlm.addHandler(dl, name=i)
+        ######################## video
+        file_counter = 0
+        for i, j in enumerate(self.video_urls):
+
+            if isinstance(j, BasicUrlGroup):
+                group_done_flag = True
+                group_dlm = nbdler.Manager()
+                group_dlm.config(max_task=cv.MAX_TASK)
+                for index, cur_urls in enumerate(j):
+
+                    if not self.add_handler(group_dlm, cur_urls, path, self.video_filenames[file_counter]):
+                        group_done_flag = False
+                    file_counter += 1
+
+                self.dlm.addHandler(group_dlm, name=i)
+            elif isinstance(j, list) or isinstance(j, tuple):
+                group_done_flag = self.add_handler(self.dlm, list(j), path, self.video_filenames[file_counter], i)
+                file_counter += 1
+            elif isinstance(j, str):
+                group_done_flag = self.add_handler(self.dlm, [j], path, self.video_filenames[file_counter], i)
+                file_counter += 1
             else:
+                raise TypeError('downloader got an unsupported type %s , should be list or tuple' % str(type(j)))
+
+            if group_done_flag:
                 gui.frame_downloader.updateBlock(i, gui.COLOR_OK)
-                self._inc_progress += os.path.getsize(filepath)
 
-        for i, j in enumerate(self.audio_filenames):
-            filepath = os.path.join(self.filepath, self._title, j)
-            if os.path.exists(filepath + '.nbdler') and os.path.exists(filepath):
-                dl = nbdler.open(filepath)
-                kwargs = {
-                    'urls': [*list(self.video_urls[i])] if isinstance(self.video_urls[i], list) or isinstance(
-                        self.video_urls[i], tuple) else [self.video_urls[i]],
-                    'range_formats': [self._range_format],
-                    'headers': [self._headers],
-                }
-                dl.batchAdd(**kwargs)
-                self.dlm.addHandler(dl, name=i)
-            elif os.path.exists(filepath + '.nbdler') or not os.path.exists(filepath):
-                kwargs = {
-                    'filename': j,
-                    'filepath': path,
-                    'max_conn': self.max_conn,
-                    'urls': [*list(self.audio_urls[i])] if isinstance(self.audio_urls[i], list) or isinstance(
-                        self.audio_urls[i], tuple) else [self.audio_urls[i]],
-                    'range_formats': [self._range_format],
-                    'headers': [self._headers],
-                    'buffer_size': cv.BUFFER_SIZE * 1024 * 1024,
-                    'block_size': cv.BLOCK_SIZE * 1024
-                }
-                dl = nbdler.open(**kwargs)
 
-                self.dlm.addHandler(dl, name=i)
+        ######################## audio
+
+        file_counter = 0
+        for i, j in enumerate(self.audio_urls):
+
+            if isinstance(j, BasicUrlGroup):
+                group_done_flag = True
+                group_dlm = nbdler.Manager()
+                group_dlm.config(max_task=cv.MAX_TASK)
+                for index, cur_urls in enumerate(j):
+
+                    if not self.add_handler(group_dlm, cur_urls, path, self.audio_filenames[file_counter]):
+                        group_done_flag = False
+                    file_counter += 1
+
+                if group_done_flag:
+                    gui.frame_downloader.updateBlock(i, gui.COLOR_OK)
+
+                self.dlm.addHandler(group_dlm, name=i)
+            elif isinstance(j, list) or isinstance(j, tuple):
+
+                self.add_handler(self.dlm, list(j), path, self.audio_filenames[file_counter], i)
+                file_counter += 1
+            elif isinstance(j, str):
+                self.add_handler(self.dlm, [j], path, self.audio_filenames[file_counter], i)
+                file_counter += 1
             else:
-                gui.frame_downloader.updateBlock(len(self.video_filenames) + i, gui.COLOR_OK)
-                self._inc_progress += os.path.getsize(filepath)
+                raise TypeError('downloader got an unsupported type %s , should be list or tuple' % str(type(j)))
 
         self.dlm.run()
 
@@ -157,23 +202,41 @@ class Handler:
 
     def generate_name(self):
         self.audio_filenames = []
-        for i in range(len(self.audio_urls)):
-            self.audio_filenames.append('[audio]%04d-%s.%s' % (i, self._title, self._ext))
+        for i, j in enumerate(self.audio_urls):
+            # tmp_names = []
+            if isinstance(j, BasicUrlGroup):
+                for n in range(len(j)):
+                    self.audio_filenames.append('[audio]%03d-(%04d)%s.%s' % (i, n, self._title, self._ext))
+            else:
+                self.audio_filenames.append('[audio]%03d-%s.%s' % (i, self._title, self._ext))
+            # self.audio_filenames.append(tmp_names)
 
         self.video_filenames = []
         if self.audio_filenames:
-            for i in range(self._filenum):
-                self.video_filenames.append('[video]%04d-%s.%s' % (i, self._title, self._ext))
+            for i, j in enumerate(self.video_urls):
+                # tmp_names = []
+                if isinstance(j, BasicUrlGroup):
+                    for n in range(len(j)):
+                        self.video_filenames.append('[video]%03d-(%04d)%s.%s' % (i, n, self._title, self._ext))
+                else:
+                    self.video_filenames.append('[video]%03d-%s.%s' % (i, self._title, self._ext))
+                # self.video_filenames.append(tmp_names)
         else:
-            for i in range(self._filenum):
-                self.video_filenames.append('%04d-%s.%s' % (i, self._title, self._ext))
-
+            for i, j in enumerate(self.video_urls):
+                # tmp_names = []
+                if isinstance(j, BasicUrlGroup):
+                    for n in range(len(j)):
+                        self.video_filenames.append('%03d-(%04d)%s.%s' % (i, n, self._title, self._ext))
+                else:
+                    self.video_filenames.append('%03d-%s.%s' % (i, self._title, self._ext))
+                # self.video_filenames.append(tmp_names)
 
     def is_all_files_done(self):
         for i in self.video_filenames:
             if not os.path.exists(os.path.join(self.filepath, self._title, i)) or \
                     os.path.exists(os.path.join(self.filepath, self._title, i + '.nbdler')):
                 break
+
         else:
             return True
 
@@ -228,7 +291,7 @@ class Handler:
             dl = self.dlm.getHandler(id=i)
             cur_inc += dl.getIncByte()
 
-        gui.frame_downloader.updateTotal(cur_inc + self._inc_progress, self.dlm.getInsSpeed())
+        gui.frame_downloader.updateTotal(cur_inc + self._inc_progress, self.dlm.getInsSpeed(), self.dlm.getTotalSize() + self._inc_progress)
 
     def process_event(self, event):
         done_queue = self.dlm.getDoneQueue()

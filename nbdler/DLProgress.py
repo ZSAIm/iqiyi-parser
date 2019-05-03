@@ -268,7 +268,7 @@ class GlobalProgress(Packer, object):
             if not self.block_map:
                 self.makeMap()
 
-            for i in self.progresses.values():
+            for i in list(self.progresses.values()):
                 if begin > i.begin and begin < i.end:
                     raise Exception('ProgressOverlap')
 
@@ -282,6 +282,7 @@ class GlobalProgress(Packer, object):
     def run(self):
         if not self.block_map:
             self.makeMap()
+        # print('run:', self.progresses.keys(), self.handler.file.name)
         for i, j in self.progresses.items():
             j.run()
 
@@ -307,6 +308,7 @@ class GlobalProgress(Packer, object):
                 miss = self.checkCompleteness()
                 if miss:
                     for i in miss:
+                        # print('check all go end', self.handler.file.name, self.handler.file.size)
                         self.insert(self.allotter.assignUrlid(), *i)
                         self.run()
 
@@ -536,7 +538,9 @@ class GlobalProgress(Packer, object):
                 if i.end == Range[1]:
                     progress = i
                     break
-            if not progress:
+            else:
+            # if not progress:
+            #     print('???????', Range, self.progresses.keys(), self.handler.file.name)
                 for i in cur_progresses:
                     if i.begin == Range[1]:
                         gap = True
@@ -547,6 +551,10 @@ class GlobalProgress(Packer, object):
 
                 if gap:
                     return Range
+
+                if not progress:
+                    # print(Range, self.progresses.keys())
+                    return []
 
             return progress.processor.cutRequest(Range)
         else:

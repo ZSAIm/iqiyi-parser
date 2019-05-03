@@ -1,5 +1,5 @@
 
-
+from math import ceil
 import threading
 
 class Allotter(object):
@@ -11,11 +11,14 @@ class Allotter(object):
         self.__allotter_lock__ = threading.Lock()
 
     def makeBaseConn(self):
-
         ranges = self.blockToRange(self.makeEvenBlock(len(self.handler.url.getAllUrl())))
 
         for i, j in enumerate(self.handler.url.getAllUrl().keys()):
+            # print('make base conn')
             self.globalprog.insert(j, *ranges[i])
+
+            if i + 1 >= len(ranges):
+                break
 
 
     def splitRange(self, Range, num):
@@ -31,26 +34,40 @@ class Allotter(object):
 
         return retlist
 
+
+
+
     def makeEvenBlock(self, block_num):
+        """it may returns more than total block"""
         if not self.globalprog.block_map:
             self.globalprog.makeMap()
 
-        each_block = int(len(self.globalprog.getMap()) / block_num)
+        each_block = ceil(len(self.globalprog.getMap()) * 1.0 / block_num)
 
         blocks = []
+        # if each_block >= 1:
 
         for i in range(block_num):
-            blocks.append((i * each_block, (i+1) * each_block))
+            begin = i * each_block
+            end = (i + 1) * each_block
+            if begin < len(self.globalprog.getMap()):
+                blocks.append((begin, end))
+            else:
+                blocks.append((-1, -1))
+
+        blocks = list(filter(lambda x: x != (-1, -1), blocks))
+        # blocks.append((i * each_block, (i+1) * each_block))
 
         blocks[-1] = (blocks[-1][0], len(self.globalprog.getMap()))
-
+        # else:
+        #     blocks.append((0, len(self.globalprog.getMap())))
         return blocks
 
-    def assignAll(self):
-        ranges = self.blockToRange(self.makeEvenBlock(self.handler.url.max_conn))
-
-        for i in range(self.handler.url.max_conn):
-            self.globalprog.insert(i, )
+    # def assignAll(self):
+    #     ranges = self.blockToRange(self.makeEvenBlock(self.handler.url.max_conn))
+    #
+    #     for i in range(self.handler.url.max_conn):
+    #         self.globalprog.insert(i, )
 
 
     def getUrlsThread(self):
@@ -105,7 +122,9 @@ class Allotter(object):
         ranges_table = self.blockToRange(half_block)
 
         put_range = ranges_table[-1] if ranges_table else []
-
+        # print(put_range, self.globalprog.progresses.keys())
+        if put_range and put_range[0] == put_range[1]:
+            put_range = []
         return put_range
 
     def assign(self):
@@ -148,23 +167,30 @@ class Allotter(object):
                     block_head = None
 
         if block_head is not None:
-            free_list.append((block_head, len(tmp_map)-1))
+            free_list.append((block_head, len(tmp_map)))
 
         return sorted(free_list, key=lambda x: (x[1] - x[0]))
 
     def blockToRange(self, block_list):
         retranges = []
+        the_last_block = len(self.globalprog.getMap())
+
         for i in block_list:
             begin = i[0] * self.handler.file.BLOCK_SIZE
             end = i[1] * self.handler.file.BLOCK_SIZE
-            if i[1] == len(self.globalprog.getMap()) - 1:
-                end = self.handler.file.size
-            retranges.append((begin, end))
 
-        if retranges and retranges[-1][1] + self.handler.file.BLOCK_SIZE > self.handler.file.size:
-            retranges[-1] = (retranges[-1][0], self.handler.file.size)
+            if i[0] < the_last_block:
+                if i[1] == the_last_block:
+                    end = self.handler.file.size
+                retranges.append((begin, end))
+            else:
+                retranges.append((-1, -1))
 
-        return retranges
+
+        # if retranges and retranges[-1][1] + self.handler.file.BLOCK_SIZE > self.handler.file.size:
+        #     retranges[-1] = (retranges[-1][0], self.handler.file.size)
+
+        return list(filter(lambda x: x != (-1, -1), retranges))
 
 
 

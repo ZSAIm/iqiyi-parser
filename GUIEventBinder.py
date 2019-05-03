@@ -7,16 +7,16 @@ import CommonVar as cv
 import flow
 
 def init():
-    FrameMain.bindEvent()
+    FrameDownloader.bindEvent()
     FrameParser.bindEvent()
     FrameMerger.bindEvent()
+    DialogCopyLink.bindEvent()
 
-
-class FrameMain:
+class FrameDownloader:
     @staticmethod
     def bindEvent():
-        gui.frame_downloader.Bind(wx.EVT_CLOSE, FrameMain.win_close)
-        FrameMain.MenuBar.bindEvent()
+        gui.frame_downloader.Bind(wx.EVT_CLOSE, FrameDownloader.win_close)
+        FrameDownloader.MenuBar.bindEvent()
 
     @staticmethod
     def win_close(event):
@@ -26,14 +26,14 @@ class FrameMain:
     class MenuBar:
         @staticmethod
         def bindEvent():
-            FrameMain.MenuBar.File.bineEvent()
-            FrameMain.MenuBar.Help.bindEvent()
+            FrameDownloader.MenuBar.File.bineEvent()
+            FrameDownloader.MenuBar.Help.bindEvent()
 
         class File:
             @staticmethod
             def bineEvent():
                 items = ('parse', 'settings', 'exit')
-                FrameMain.MenuBar.batchBind(FrameMain.MenuBar.File, gui.frame_downloader.menu_bar.file, items)
+                FrameDownloader.MenuBar.batchBind(FrameDownloader.MenuBar.File, gui.frame_downloader.menu_bar.file, items)
 
             @staticmethod
             def parse(event):
@@ -41,7 +41,7 @@ class FrameMain:
 
             @staticmethod
             def settings(event):
-                dlg = gui.DialogSettings(gui.frame_parse)
+                dlg = gui.DialogSettings(gui.frame_downloader)
                 dlg.ShowModal()
 
             @staticmethod
@@ -53,7 +53,7 @@ class FrameMain:
             @staticmethod
             def bindEvent():
                 items = ('about',)
-                FrameMain.MenuBar.batchBind(FrameMain.MenuBar.Help, gui.frame_downloader.menu_bar.help, items)
+                FrameDownloader.MenuBar.batchBind(FrameDownloader.MenuBar.Help, gui.frame_downloader.menu_bar.help, items)
 
             @staticmethod
             def about(event):
@@ -92,7 +92,8 @@ class FrameParser:
 
         @staticmethod
         def copylinks(event):
-            flow.FrameParser.MenuCopyLinks.handle()
+            flow.FrameParser.MenuCopyLink.handle()
+
 
 
     class MemuBar:
@@ -171,7 +172,8 @@ class FrameMerger:
 
             @staticmethod
             def settings(event):
-                pass
+                dlg = gui.DialogSettings(gui.frame_merger)
+                dlg.ShowModal()
 
             @staticmethod
             def exit(event):
@@ -195,3 +197,29 @@ class FrameMerger:
             for i in items_name:
                 gui.frame_merger.Bind(wx.EVT_MENU, getattr(handler_parent, i), getattr(source_parent, i))
 
+
+
+class DialogCopyLink:
+    @staticmethod
+    def bindEvent():
+        DialogCopyLink.ListCtrl.bindEvent()
+
+    class ListCtrl:
+        @staticmethod
+        def bindEvent():
+            items = ('copysel', 'copygroup')
+            DialogCopyLink.ListCtrl.batchBind(DialogCopyLink.ListCtrl, gui.dialog_copylink.listctrl_links.menu, items)
+
+        @staticmethod
+        def copysel(event):
+            flow.CopyLink.copysel()
+
+
+        @staticmethod
+        def copygroup(event):
+            flow.CopyLink.copygroup()
+
+        @staticmethod
+        def batchBind(handler_parent, source_parent, items_name):
+            for i in items_name:
+                gui.dialog_copylink.Bind(wx.EVT_MENU, getattr(handler_parent, i), getattr(source_parent, i))

@@ -4,7 +4,7 @@
 import wx
 
 
-class DialogToolReq(wx.Dialog):
+class DialogGetTool(wx.Dialog):
     def __init__(self, parent, title, total_byte, dlm):
         wx.Dialog.__init__(self, parent, id=wx.ID_ANY, title=title, pos=wx.DefaultPosition, size=wx.DefaultSize,
                            style=wx.DEFAULT_DIALOG_STYLE)

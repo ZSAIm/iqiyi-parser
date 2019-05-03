@@ -198,7 +198,8 @@ class Target(object):
 
         self.protocol, s1 = splittype(self.url)
         s2, self.path = splithost(s1)
-        self.host, self.port = splitport(s2)
+        self.host, port = splitport(s2)
+        self.port = int(port) if port is not None else None
 
         if not self.port:
             if self.protocol == 'http':
@@ -301,7 +302,8 @@ class Url(Packer, object):
             if s1:
                 s2, self.path = splithost(s1)
                 if s2:
-                    self.host, self.port = splitport(s2)
+                    self.host, port = splitport(s2)
+                    self.port = int(port) if port is not None else None
 
             if not getattr(self, 'port', None):
                 if self.protocol == 'http':
