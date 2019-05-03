@@ -91,7 +91,9 @@ class FrameMain(wx.Frame):
         self.sizer_total.Add(self.gauge_total, 5, wx.ALL | wx.EXPAND, 5)
         self.sizer_total.Add(self.text_speed, 0, wx.ALL, 5)
 
-    def updateTotal(self, current_byte, speed_byte):
+    def updateTotal(self, current_byte, speed_byte, total_byte=None):
+        if total_byte:
+            self.total = total_byte
         percent = current_byte * 100.0 / self.total
         progress = '[ %s/%s ]' % (format_byte(current_byte if current_byte > 0 else 0, '%.1f%s'), format_byte(self.total, '%.1f%s'))
         speed = format_byte(speed_byte if speed_byte > 0 else 0, '%.1f%s/s')

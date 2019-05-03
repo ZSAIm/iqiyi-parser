@@ -1,25 +1,28 @@
 
 import wx
-# from gui.frame import FrameMain
+
 from gui.frame_downloader import *
 from gui.frame_parser import FrameParser
 from gui.about import DialogAbout
 from gui.frame_merger import FrameMerger
-from gui.tool_request import DialogToolReq
-from gui.settings import DialogSettings
+from gui.dialog_gettool import DialogGetTool
+from gui.dialog_settings import DialogSettings
+from gui.dialog_copylink import DialogCopyLink
 
 app = None
 frame_downloader = None
 frame_parse = None
 timer = None
 frame_merger = None
+dialog_copylink = None
 
 def init():
-    global app, frame_downloader, frame_parse, frame_merger
+    global app, frame_downloader, frame_parse, frame_merger, dialog_copylink
     app = wx.App()
     frame_downloader = FrameMain(None)
     frame_parse = FrameParser(None)
     frame_merger = FrameMerger(None)
+    dialog_copylink = DialogCopyLink(frame_parse)
 
 def MainLoop():
     global app

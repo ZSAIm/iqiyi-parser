@@ -1,4 +1,10 @@
-# -*- coding:utf-8 -*-
+##############################################
+#
+# author: ZSAIm
+#
+# github: https://github.com/ZSAIm/PyJSCaller
+#
+##############################################
 
 import subprocess
 import traceback, os
@@ -408,21 +414,22 @@ class Result:
         return self.getExprText()
 
     def __eq__(self, other):
-        if other.met_name != self.met_name:
-            return False
-
-        if len(other.args) != len(self.args) or len(self.kwargs) != len(other.kwargs):
-            return False
-
-        for i in self.args:
-            if i not in other.args:
-                return False
-
-        for i, j in self.kwargs.items():
-            if i not in other.kwargs or other.kwargs[i] != j:
-                return False
-
-        return True
+        return id(other) == id(self)
+        # if other.met_name != self.met_name:
+        #     return False
+        #
+        # if len(other.args) != len(self.args) or len(self.kwargs) != len(other.kwargs):
+        #     return False
+        #
+        # for i in self.args:
+        #     if i not in other.args:
+        #         return False
+        #
+        # for i, j in self.kwargs.items():
+        #     if i not in other.kwargs or other.kwargs[i] != j:
+        #         return False
+        #
+        # return True
 
 
     def getArgs(self):
@@ -495,6 +502,8 @@ def setNodePath(path):
     global NODEPATH
     NODEPATH = path
 
+
+
 if __name__ == "__main__":
     setNodePath('')
 
@@ -505,32 +514,29 @@ if __name__ == "__main__":
     b = 3
     c = 5
 
-    with Sesson('example.js') as sess:  # 其中example.js指要调用的JS脚本所在路径。
+    with Sesson('example.js') as sess:
         triAdd, triMul = sess.require('triAdd', 'triMul')
-        res = triMul(triAdd(a, b, c), triAdd(c, b, a), 1)  # 使用方法跟JS中基本一致。
-        sess.call(res)  # 告诉sess我要你执行res
+        res = triMul(triAdd(a, b, c), triAdd(c, b, a), 1)
+        sess.call(res)
 
-    print(res.getValue())  # 将得到最后执行结果 100
-    print('执行JS脚本总耗时：%s' % (time.clock() - start))
+    print(res.getValue())
+    print('total time：%s' % (time.clock() - start))
 
     start = time.clock()
-    # 　如果要调用Nodejs下函数，通过require获取querystring库，来执行stringify。
 
     with Sesson('example.js') as sess:
         require = sess.require('require')
 
-        querystring = require('querystring')  # 获取querystring库
-        querystring.require('stringify')  # 告诉sess我要用到querystring的stringify方法
+        querystring = require('querystring')
+        querystring.require('stringify')
 
         query_dict = {'one': 2, 'two': [1, 'haha', {'h': res.getValue(), 'ss': {'2': 2}}]}
 
         query_str = querystring.stringify(query_dict)
-        # 如果querystring下attr与方法重名，可以使用getMethod()获取方法，如 querystring.getMethod('stringify')
 
-        # 对query_dict进行call是不必须的，sess会自动处理# 依赖关系，只需要call其中需要执行结果的变量即可。
         sess.call(query_str)
 
     print(query_str.getValue())
-    print('执行JS脚本总耗时: %s' % (time.clock() - start))
+    print('total time: %s' % (time.clock() - start))
 
 

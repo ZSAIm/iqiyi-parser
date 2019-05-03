@@ -151,7 +151,7 @@ class BasicRespond:
         return []
 
     def getTotalFileSize(self):
-        return -1
+        return self.getVideoSize()
 
     def getVideoSize(self):
         return self._videosize
@@ -185,6 +185,9 @@ class BasicRespond:
 
     def getM3U8(self):
         return None
+
+    def getM3U8Urls(self):
+        return []
 
     def setSelAudio(self, index):
         pass
@@ -226,6 +229,53 @@ class BasicRespond:
 
     def getVideoLegalTitle(self):
         return re.sub('[\\/:\?<>\|\*"]', ' ', self.getVideoTitle())
+
+
+
+class BasicUrlGroup:
+    def __init__(self, _init_items=None):
+        self._members = []
+        self._iter_index = 0
+        if _init_items:
+            self.extend(_init_items)
+
+
+    def appendItem(self, item):
+        if isinstance(item, list) or isinstance(item, tuple):
+            self._members.append(list(item))
+        elif isinstance(item, str):
+            self._members.append([item])
+        else:
+            raise TypeError('item should be list, tuple or str')
+
+    def getAll(self):
+        return self._members
+
+    def __len__(self):
+        return len(self._members)
+
+    def __getitem__(self, item):
+        if not isinstance(item, int):
+            raise TypeError('index should be int')
+        return self._members[item]
+
+    def __iter__(self):
+        self._iter_index = 0
+        return self
+
+    def __next__(self):
+        if self._iter_index >= len(self._members):
+            raise StopIteration
+        cur = self._members[self._iter_index]
+        self._iter_index += 1
+
+        return cur
+
+
+    def extend(self, items):
+        self._members.extend(items)
+        # for i in items:
+        #     self.appendItem(i)
 
 
 class BasicVideoInfo:

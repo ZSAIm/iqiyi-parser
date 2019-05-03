@@ -113,13 +113,15 @@ class Iqiyi(BasicParser):
 
         videos_res = []
 
+        title = BeautifulSoup(text, features='html.parser').title.string
+
         for bid in bids:
             target_ts_url, target_f4v_url = self.makeTargetUrl(tvid, vid, bid)
 
             res_json_ts = self.getTargetJson(target_ts_url)
 
             if res_json_ts:
-                extra_info_ts = BasicVideoInfo(url, BeautifulSoup(text, features='html.parser').title.string,
+                extra_info_ts = BasicVideoInfo(url, title,
                                                res_json_ts['data']['ctl']['bid'])
                 videos_res.append(IqiyiRespond(self, res_json_ts, res_json_ts, extra_info_ts))
 
@@ -128,7 +130,7 @@ class Iqiyi(BasicParser):
 
             res_json_f4v = self.getTargetJson(target_f4v_url)
             if res_json_ts:
-                extra_info_f4v = BasicVideoInfo(url, BeautifulSoup(text, features='html.parser').title.string,
+                extra_info_f4v = BasicVideoInfo(url, title,
                                                 res_json_f4v['data']['ctl']['bid'])
 
                 videos_res.append(IqiyiRespond(self, res_json_f4v, res_json_f4v, extra_info_f4v))
@@ -369,7 +371,7 @@ class IqiyiRespond(BasicRespond):
 
     def __extract_m3u8__(self, m3u8):
         if m3u8:
-            m3u8_parts = re.compile('#EXTINF:(\d+),\s+(http://data.video.iqiyi.com/videos/\S+)').findall(m3u8)
+            m3u8_parts = re.compile('#EXTINF:([\d\.]+),\s+(http://data.video.iqiyi.com/videos/\S+)').findall(m3u8)
             rex_filename = re.compile('/([a-z|A-Z|0-9]+)\.([A-Z|a-z|0-9]+)\?')
 
             filenames = []

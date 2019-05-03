@@ -237,6 +237,10 @@ class BilibiliRespond(BasicRespond):
             # video size
             self._videosize = self._get_file_size_from_url_(self._target_video_urls[0][0])
 
+            # audio urls
+
+            self._target_audio_urls = [i.urls for i in self._audios_info]
+
         self._video_len = self.full_json['data']['timelength']
 
 

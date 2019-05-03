@@ -104,26 +104,32 @@ class Manager(Packer, object):
         del self.name_id[self.getIdFromName(id)]
 
     def run(self, id=None):
-        self.all_pause_flag = False
-        if id is not None:
-            if len(self.queue.run) < self.max_task:
-                self.tasks[id].run()
-                self.queue.run.append(id)
-        else:
-            tmp = self.queue.undone[:]
-            for i in tmp:
+        with self.__queue_lock__:
+            self.all_pause_flag = False
+            if not self._insp_thr or not self._insp_thr.isAlive():
+
+                self._insp_thr = threading.Thread(target=self.__insp__, name='Nbdler-Manager')
+                self._insp_thr.start()
+            if id is not None:
                 if len(self.queue.run) < self.max_task:
-                    if not self.tasks[i].isEnd():
+                    self.tasks[id].run()
+                    self.queue.run.append(id)
+            else:
+
+                for i in list(self.queue.undone):
+                    if len(self.queue.run) < self.max_task:
+                        # if not self.tasks[i].isEnd():
                         self.tasks[i].run()
                         self.queue.run.append(i)
                         if i in self.queue.pause:
                             self.queue.pause.remove(i)
                         self.queue.undone.remove(i)
+                        # else:
+                            #
+                            # if i in self.queue.undone:
+                            #     self.queue.done.append(i)
+                            #     self.queue.undone.remove(i)
 
-        if not self._insp_thr or not self._insp_thr.isAlive():
-
-            self._insp_thr = threading.Thread(target=self.__insp__, name='Nbdler-Manager')
-            self._insp_thr.start()
 
     def pause(self, id=None):
 
@@ -160,7 +166,11 @@ class Manager(Packer, object):
 
     def join(self):
         if not self._insp_thr:
-            raise RuntimeError('cannot join thread before it is started')
+            if not self.isEnd():
+                self.run()
+            else:
+                return
+            # raise RuntimeError('cannot join thread before it is started')
 
         self._insp_thr.join()
         for i in self.tasks.values():
@@ -199,7 +209,18 @@ class Manager(Packer, object):
 
         return inc
 
+    def getFileSize(self, id=None):
+        if id is not None:
+            return self.tasks[id].getFileSize()
 
+        return self.getTotalSize()
+
+    def getTotalSize(self):
+        size = 0
+        for i, j in self.tasks.items():
+            size += j.getFileSize()
+
+        return size
 
     def getLeft(self, id=None):
         if id is not None:
@@ -209,6 +230,8 @@ class Manager(Packer, object):
         for i in self.queue.run:
             if not self.tasks[i].isEnd():
                 left += self.tasks[i].getLeft()
+        for i in self.queue.undone:
+            left += self.tasks[i].getLeft()
         return left
 
 

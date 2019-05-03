@@ -40,6 +40,7 @@ def saveConfig():
     config.set('Settings', 'max_thread_num', str(cv.MAX_CONN))
     config.set('Settings', 'buffer_size', str(cv.BUFFER_SIZE))
     config.set('Settings', 'block_size', str(cv.BLOCK_SIZE))
+    config.set('Settings', 'target_format', str(cv.TARGET_FORMAT))
     config.set('Settings', 'last_save_path', str(cv.FILEPATH))
     config.set('Settings', 'undone_job', str(cv.UNDONE_JOB))
     config.set('Settings', 'ffmpeg', str(cv.FFMPEG_PATH))
@@ -60,9 +61,11 @@ def __loadConfig__():
         cv.MAX_CONN = int(config.get('Settings', 'max_thread_num'))
         cv.BUFFER_SIZE = int(config.get('Settings', 'buffer_size'))
         cv.BLOCK_SIZE = int(config.get('Settings', 'block_size'))
+        cv.TARGET_FORMAT = config.get('Settings', 'target_format')
         cv.FILEPATH = config.get('Settings', 'last_save_path')
         undonejob = config.get('Settings', 'undone_job')
         cv.FFMPEG_PATH = config.get('Settings', 'ffmpeg')
+
         cv.UNDONE_JOB = eval(undonejob) if undonejob else ''
     except (NoSectionError, NoOptionError):
         initConfig()

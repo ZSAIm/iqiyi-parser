@@ -40,10 +40,13 @@ import threading
 import pyperclip
 import nbdler
 from zipfile import ZipFile
+from core.common import BasicUrlGroup
+
 
 TOOL_REQ_URL = {
     'ffmpeg': 'https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-3.2-win64-static.zip',
-    'node': 'https://npm.taobao.org/mirrors/node/v0.12.18/node.exe'
+    'node': 'https://npm.taobao.org/mirrors/node/v10.15.3/win-x64/node.exe',
+
 }
 
 
@@ -91,7 +94,7 @@ class ToolReq:
             dl = nbdler.open(urls=[TOOL_REQ_URL['ffmpeg']],
                              max_conn=16, filename='ffmpeg.zip')
             dlm.addHandler(dl)
-            dlg = gui.DialogToolReq(gui.frame_downloader, u'正在下载 Ffmpeg 3.2.zip', dl.getFileSize(), dlm)
+            dlg = gui.DialogGetTool(gui.frame_downloader, u'正在下载 Ffmpeg 3.2.zip', dl.getFileSize(), dlm)
 
             dlg.Bind(wx.EVT_TIMER, ToolReq._process, dlg.timer)
             dlg.timer.Start(50, oneShot=False)
@@ -113,13 +116,13 @@ class ToolReq:
     def checkNode():
         dlm = nbdler.Manager()
         if not os.path.exists('node.exe') or os.path.exists('node.exe.nbdler'):
-            dlg = wx.MessageDialog(None, u'该程序需要node.exe才能完成工作，是否要下载？', u'提示', wx.YES_NO | wx.ICON_INFORMATION)
+            dlg = wx.MessageDialog(None, u'该程序需要Nodejs.exe才能完成工作，是否要下载？', u'提示', wx.YES_NO | wx.ICON_INFORMATION)
             if dlg.ShowModal() != wx.ID_YES:
                 return False
             dl = nbdler.open(urls=[TOOL_REQ_URL['node']],
                              max_conn=16, filename='node.exe')
             dlm.addHandler(dl)
-            dlg = gui.DialogToolReq(gui.frame_downloader, u'正在下载 Nodejs v0.12.18', dl.getFileSize(), dlm)
+            dlg = gui.DialogGetTool(gui.frame_downloader, u'正在下载 Nodejs v10.15.3', dl.getFileSize(), dlm)
 
             dlg.Bind(wx.EVT_TIMER, ToolReq._process, dlg.timer)
             dlg.timer.Start(50, oneShot=False)
@@ -303,59 +306,111 @@ class FrameParser:
             dlg.Destroy()
 
 
-    class MenuCopyLinks:
+    class MenuCopyLink:
         """Frame Parser Button-[Copy] Handler"""
         @staticmethod
         def handle():
-            # gui.frame_parse.button_copyurl.Enable(False)
-            index = int(gui.frame_parse.listctrl_parse.GetFirstSelected())
+            index = gui.frame_parse.listctrl_parse.GetFirstSelected()
             if index != -1:
+                # dlg = gui.DialogCopyLink(gui.frame_parse)
+                gui.dialog_copylink.listctrl_links.DeleteAllItems()
+                wx.CallAfter(gui.dialog_copylink.ShowModal)
                 sel_res = parser.getRespond()[index]
-
-                if sel_res.getM3U8():
-                    dlg = wx.MessageDialog(gui.frame_parse,
-                                           u'该视频提供了M3U8，是否复制M3U8到剪切板？\n选【No】将复制所有片段的下载地址。', u'提示',
-                                           wx.YES_NO | wx.ICON_INFORMATION)
-                    msg = dlg.ShowModal()
-                    threading.Thread(target=FrameParser.MenuCopyLinks._copy_fullurl,
-                                     args=(sel_res, msg), daemon=True).start()
-                    dlg.Destroy()
-                else:
-
-
-                    # for i in sel_res.getVideoUrls():
-                    #     for
-                    # [ for i in sel_res.getVideoUrls()]
-                    cpy_url = str('\n'.join(sel_res.getVideoUrls()))
-                    pyperclip.copy(cpy_url)
-                    FrameParser.MenuCopyLinks.success()
+                threading.Thread(target=FrameParser.MenuCopyLink._getinfo, args=(sel_res,)).start()
 
         @staticmethod
-        def success():
-            dlg = wx.MessageDialog(gui.frame_parse, u'写入到剪切板成功！', u'完成')
-            dlg.ShowModal()
-            dlg.Destroy()
+        def _getinfo(sel_res):
+            cv.CPYLINK_SEL_ITEMS = {}
+            cv.LISTCTRL_ITEMS = []
+            if sel_res.getM3U8():
+                data = ('', u'', u'√', 'V', u'以下是M3U8内容')
+                cv.LISTCTRL_ITEMS.append(data)
+                wx.CallAfter(gui.dialog_copylink.listctrl_links.Append, data, wx.Colour(255, 0, 0))
+
+                data = ('0', u'', u'√', 'V', sel_res.getM3U8())
+                cv.CPYLINK_SEL_ITEMS['video_m3u8'] = [data]
+                cv.LISTCTRL_ITEMS.append(data)
+                wx.CallAfter(gui.dialog_copylink.listctrl_links.Append, data)
+
+            if sel_res.getM3U8Urls():
+                data = ('', u'√', u'', 'V', u'以下是M3U8链接')
+                cv.LISTCTRL_ITEMS.append(data)
+                wx.CallAfter(gui.dialog_copylink.listctrl_links.Append, data, wx.Colour(255, 0, 0))
+            tmp = []
+            for i, j in enumerate(sel_res.getM3U8Urls()):
+                data = (str(i), u'√', u'', 'V', str(j))
+                tmp.append(data)
+                wx.CallAfter(gui.dialog_copylink.listctrl_links.Append, data)
+            cv.CPYLINK_SEL_ITEMS['video_m3u8'] = tmp
+            cv.LISTCTRL_ITEMS.extend(tmp)
+
+            if sel_res.getVideoUrls():
+                data = ('', u'√', u'', 'V', u'以下是目标视频下载链接')
+                cv.LISTCTRL_ITEMS.append(data)
+                wx.CallAfter(gui.dialog_copylink.listctrl_links.Append, data, wx.Colour(0, 0, 255))
+            tmp = []
+            for m, i in enumerate(sel_res.getVideoUrls()):
+                if isinstance(i, BasicUrlGroup):
+                    for n, j in enumerate(i):
+                        if isinstance(j, list) or isinstance(j, tuple):
+                            preview = j[0]
+                        elif isinstance(j, str):
+                            preview = j
+                        else:
+                            raise TypeError()
+                        data = ('%d(%03d)' % (m, n), u'√', u'', 'V', preview)
+                        tmp.append(data)
+                        wx.CallAfter(gui.dialog_copylink.listctrl_links.Append, data)
+                elif isinstance(i, list) or isinstance(i, tuple):
+                    data = (str(m), u'√', u'', 'V', i[0])
+                    tmp.append(data)
+                    wx.CallAfter(gui.dialog_copylink.listctrl_links.Append, data)
+                elif isinstance(i, str):
+                    data = (str(m), u'√', u'', 'V', i)
+                    tmp.append(data)
+                    wx.CallAfter(gui.dialog_copylink.listctrl_links.Append, data)
+                else:
+                    raise TypeError()
+            cv.CPYLINK_SEL_ITEMS['video_links'] = tmp
+            cv.LISTCTRL_ITEMS.extend(tmp)
+
+            if sel_res.getAudioUrls():
+                data = ('', u'√', u'', 'A', u'以下是目标音频下载链接')
+                cv.LISTCTRL_ITEMS.append(data)
+                wx.CallAfter(gui.dialog_copylink.listctrl_links.Append, data, wx.Colour(0, 0, 255))
+            tmp = []
+            for m, i in enumerate(sel_res.getAudioUrls()):
+                if isinstance(i, BasicUrlGroup):
+                    for n, j in enumerate(i):
+                        if isinstance(j, list) or isinstance(j, tuple):
+                            preview = j[0]
+                        elif isinstance(j, str):
+                            preview = j
+                        else:
+                            raise TypeError()
+                        data = ('%d(%03d)' % (m, n), u'√', u'', 'A', preview)
+                        tmp.append(data)
+                        wx.CallAfter(gui.dialog_copylink.listctrl_links.Append, data)
+                elif isinstance(i, list) or isinstance(i, tuple):
+                    data = (str(m), u'√', u'', 'A', i[0])
+                    tmp.append(data)
+                    wx.CallAfter(gui.dialog_copylink.listctrl_links.Append, data)
+                elif isinstance(i, str):
+                    data = (str(m), u'√', u'', 'A', i)
+                    tmp.append(data)
+                    wx.CallAfter(gui.dialog_copylink.listctrl_links.Append, data)
+                else:
+                    raise TypeError()
+            cv.CPYLINK_SEL_ITEMS['audio_links'] = tmp
+            cv.LISTCTRL_ITEMS.extend(tmp)
 
         @staticmethod
         def timeout():
-            dlg = wx.MessageDialog(gui.frame_parse, u'请求超时,请重试！', u'错误', wx.OK | wx.ICON_ERROR)
+            dlg = wx.MessageDialog(gui.dialog_copylink, u'请求超时,请重试！', u'错误', wx.OK | wx.ICON_ERROR)
             dlg.ShowModal()
             dlg.Destroy()
 
-        @staticmethod
-        def _copy_fullurl(sel_res, dlg_msg):
-            if dlg_msg == wx.ID_YES:
-                cpy_url = str(sel_res.getM3U8())
-            else:
-                try:
-                    cpy_url = str('\n'.join(sel_res.getVideoUrls()))
-                except (socket.timeout, URLError, SSLError):
-                    wx.CallAfter(FrameParser.MenuCopyLinks.timeout)
-                    return
 
-            pyperclip.copy(cpy_url)
-            # wx.CallAfter(gui.frame_parse.button_copyurl.Enable, True)
-            wx.CallAfter(FrameParser.MenuCopyLinks.success)
 
 
     class MenuGoDownload:
@@ -511,7 +566,7 @@ class Merge:
             mer.start()
             mer.join()
 
-        dst = downloader.getDstFilePath()
+        dst = downloader.getDstFilePath() + cv.TARGET_FORMAT
         settings.clearUndoneJob()
         settings.saveConfig()
         if not cv.SHUTDOWN:
@@ -613,3 +668,49 @@ class ShutDown:
             else:
                 gui.frame_merger.Hide()
                 ShutDown.handle()
+
+
+class CopyLink:
+    @staticmethod
+    def handle():
+        pass
+
+    @staticmethod
+    def copysel():
+        cpy_list = []
+        next_index = gui.dialog_copylink.listctrl_links.GetFirstSelected()
+        while next_index != -1:
+
+            data = cv.LISTCTRL_ITEMS[next_index][4]
+            cpy_list.append(data)
+            next_index = gui.dialog_copylink.listctrl_links.GetNextSelected(next_index)
+
+        pyperclip.copy('\n'.join(cpy_list))
+        CopyLink.success()
+
+    @staticmethod
+    def copygroup():
+        sel_index = gui.dialog_copylink.listctrl_links.GetFirstSelected()
+        sel_key = ''
+
+        link_text = gui.dialog_copylink.listctrl_links.GetItemText(sel_index, 1)
+        type_text = gui.dialog_copylink.listctrl_links.GetItemText(sel_index, 3)
+        if link_text == u'√' and type_text == 'V':
+            sel_key = 'video_links'
+        elif link_text != u'√' and type_text == 'V':
+            sel_key = 'video_m3u8'
+        elif link_text == u'√' and type_text == 'A':
+            sel_key = 'audio_links'
+
+
+        if sel_key:
+            content_list = [i[4] for i in cv.CPYLINK_SEL_ITEMS[sel_key]]
+            pyperclip.copy('\n'.join(content_list))
+            CopyLink.success()
+
+
+    @staticmethod
+    def success():
+        dlg = wx.MessageDialog(gui.dialog_copylink, u'写入到剪切板成功！', u'完成')
+        dlg.ShowModal()
+        dlg.Destroy()
