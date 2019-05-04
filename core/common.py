@@ -232,6 +232,34 @@ class BasicRespond:
 
 
 
+class BasicUserCookie:
+    def __init__(self):
+        self.extra_info = {}
+
+    def extract(self, cookie_str):
+
+        rex_query = re.compile('((\w+)=(.+?))[;$\s"]')
+        ele_query = rex_query.findall(cookie_str + ' ')
+        for i in ele_query:
+            self.checkQuery(i[0])
+
+    def checkQuery(self, query):
+        if not query:
+            return
+        key, value = [i.strip().strip('"').strip("'") for i in splitvalue(query)]
+        self.extra_info[key] = value
+
+    def dumps(self):
+        _list = ['%s=%s' % (i[0], i[1]) for i in self.extra_info.items()]
+        return '; '.join(_list)
+
+    def extract_headers(self, headers_list):
+        if headers_list:
+            for i in headers_list:
+                self.checkQuery(i.split(';')[0])
+
+
+
 class BasicUrlGroup:
     def __init__(self, _init_items=None):
         self._members = []
@@ -307,3 +335,11 @@ class BasicAudioInfo:
             return object.__getattribute__(self, item)
 
 
+def matchParse(url, quality, features):
+    global WEBSITE
+    res = WEBSITE.parse(url, [quality])
+    for i in res:
+        if i.matchFeature(features):
+            return i
+
+    return None

@@ -15,6 +15,7 @@ import socket
 import threading
 import flow
 import handler
+from handler.logs import StdoutPipe
 
 socket.setdefaulttimeout(3)
 
@@ -39,10 +40,11 @@ if __name__ == '__main__':
         ferr.write('%s\n' % time.asctime(time.localtime(time.time())))
         ferr.write('------------------------\n')
         sys.stderr = ferr
+
         gui.init()
         GUIEventBinder.init()
 
-
+        sys.stdout = StdoutPipe()
         main()
         gui.MainLoop()
 

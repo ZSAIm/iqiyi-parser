@@ -135,3 +135,37 @@ class Menu_CopyLink(wx.Menu):
         self.copygroup = wx.MenuItem(self, wx.ID_ANY, u'复制所在组所有链接', wx.EmptyString, wx.ITEM_NORMAL)
         self.Append(self.copygroup)
 
+
+
+class ListCtrl_DLLog(wx.ListCtrl):
+    def __init__(self, *args):
+        wx.ListCtrl.__init__(self, *args)
+        self.initColumn()
+
+        # self.menu = Menu_CopyLink()
+        # self.Bind(wx.EVT_RIGHT_DOWN, self.OnContextMenu)
+
+    def initColumn(self):
+        self.AppendColumn('信息', format=wx.LIST_FORMAT_RIGHT, width=400)
+
+
+    def Append(self, entry, fgcolor=None):
+        wx.ListCtrl.Append(self, entry)
+        item_count = self.GetItemCount()
+        if not item_count % 2:
+            self.SetItemBackgroundColour(item_count - 1, ODD_BGCOLOR)
+
+        if fgcolor:
+            self.SetItemTextColour(item_count-1, wx.Colour(fgcolor))
+        self.ScrollLines(1)
+
+    def DeleteItem(self, item):
+        wx.ListCtrl.DeleteItem(self, item)
+        item_count = self.GetItemCount()
+        odd = True if item % 2 else False
+
+        for i in range(item_count - item):
+
+            self.SetItemBackgroundColour(i + item, ODD_BGCOLOR if odd else EVEN_BGCOLOR)
+
+            odd = not odd

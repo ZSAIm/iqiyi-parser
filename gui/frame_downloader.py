@@ -198,20 +198,20 @@ class Menu_File(wx.Menu):
     def __init__(self, *args):
         wx.Menu.__init__(self, *args)
 
-        self.parse = None
+        self.logs = None
         self.settings = None
         self.exit = None
 
         self.initMenuItems()
 
     def initMenuItems(self):
-        self.parse = wx.MenuItem(self, wx.ID_ANY, 'Parse', wx.EmptyString, wx.ITEM_NORMAL)
-        self.parse.Enable(False)
+        self.logs = wx.MenuItem(self, wx.ID_ANY, 'Logs', wx.EmptyString, wx.ITEM_NORMAL)
+        # self.parse.Enable(False)
         self.settings = wx.MenuItem(self, wx.ID_ANY, 'Settings', wx.EmptyString, wx.ITEM_NORMAL)
         # self.settings.Enable(False)
         self.exit = wx.MenuItem(self, wx.ID_ANY, 'Exit', wx.EmptyString, wx.ITEM_NORMAL)
 
-        self.Append(self.parse)
+        self.Append(self.logs)
         self.AppendSeparator()
         self.Append(self.settings)
         self.AppendSeparator()

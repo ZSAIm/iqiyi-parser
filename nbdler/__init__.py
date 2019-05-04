@@ -34,7 +34,10 @@ def open(fp=None, **kwargs):
         dlh.unpack(packet)
     else:
         dlh.config(**kwargs)
-        dlh.batchAdd(**kwargs)
+        if kwargs.get('wait_for_run', False):
+            dlh._batchnode_bak = kwargs
+        else:
+            dlh.batchAdd(**kwargs)
 
     return dlh
 

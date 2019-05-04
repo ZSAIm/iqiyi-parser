@@ -45,6 +45,8 @@ class Handler:
 
         self._thr = None
 
+        self.wait_for_run = False
+
     def prepare(self, res):
         self.filepath = cv.FILEPATH
         self.max_task = cv.MAX_TASK
@@ -72,18 +74,18 @@ class Handler:
         if os.path.exists(filepath + '.nbdler') and os.path.exists(filepath):
 
             group_done_flag = False
-            dl = nbdler.open(filepath)
+            dl = nbdler.open(filepath, wait_for_run=self.wait_for_run)
             kwargs = {
                 'urls': [*list(urls)] if isinstance(urls, list) or isinstance(
                     urls, tuple) else [urls],
                 'range_formats': [self._range_format],
                 'headers': [self._headers],
             }
-            dl.batchAdd(**kwargs)
+            dl.batchAdd(wait_for_run=self.wait_for_run, **kwargs)
             # dlm.addHandler(dl, name=index)
             dlm.addHandler(dl)
 
-        elif os.path.exists(filepath + '.nbdler') or not os.path.exists(filepath):
+        elif not os.path.exists(filepath):
             group_done_flag = False
             # for mul_url in self.video_urls:
 
@@ -98,7 +100,7 @@ class Handler:
                 'buffer_size': cv.BUFFER_SIZE * 1024 * 1024,
                 'block_size': cv.BLOCK_SIZE * 1024
             }
-            dl = nbdler.open(**kwargs)
+            dl = nbdler.open(wait_for_run=self.wait_for_run, **kwargs)
             # dlm.addHandler(dl, name=index)
             if dlm_name is not None:
                 dlm.addHandler(dl, name=dlm_name)
@@ -113,6 +115,8 @@ class Handler:
         self.dlm.config(max_task=self.max_task)
 
         self.generate_name()
+        if len(self.video_filenames) + len(self.audio_filenames) > 100:
+            self.wait_for_run = True
         path = os.path.join(self.filepath, self._title)
 
         ######################## video

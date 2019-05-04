@@ -35,18 +35,18 @@ def get_parser_from_url(url):
 def parse(url, *args):
     global LASTREQ, LASTRES
     LASTREQ = (url, *args)
-    _parser = get_parser_from_url(url)
-    _parser.init()
-    LASTRES = _parser.parse(url, *args)
+    sel_parser = get_parser_from_url(url)
+    sel_parser.init()
+    LASTRES = sel_parser.parse(url, *args)
     return LASTRES
 
 
 def matchParse(url, quality, features):
     global LASTREQ, LASTRES
     LASTREQ = (url, quality, features)
-    _parser = get_parser_from_url(url)
-    _parser.init()
-    return _parser.matchParse(*LASTREQ)
+    sel_parser = get_parser_from_url(url)
+    sel_parser.init()
+    return sel_parser.matchParse(*LASTREQ)
 
 
 

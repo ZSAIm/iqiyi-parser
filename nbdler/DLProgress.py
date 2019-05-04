@@ -340,7 +340,8 @@ class GlobalProgress(Packer, object):
 
 
     def pause(self):
-
+        if self.isEnd():
+            return
         self.pause_req = True
         for i in self.handler.thrpool.getThreadsFromName('Nbdler-AddNode'):
             i.join()
@@ -436,6 +437,8 @@ class GlobalProgress(Packer, object):
             curleft = self.getLeft()
             curclock = time.time()
 
+
+
             if self.piece.last_left is None:
                 self.piece.last_left = curleft
             if self.piece.last_clock is None:
@@ -447,12 +450,28 @@ class GlobalProgress(Packer, object):
             incbyte = self.piece.last_left - curleft
             incclock = curclock - self.piece.last_clock
 
+
+
+
             if incclock >= 1:
                 self.piece.last_left = curleft + incbyte / 2.0
                 self.piece.last_clock = curclock - incclock / 2.0
 
+            if self.isEnd() and curleft == 0:
+                if incbyte > 0 and incclock > 0:
+                    # self.piece.last_left = curleft
+                    # self.piece.last_clock = curclock
+                    return incbyte * 1.0 / incclock
+                else:
+                    return 0
 
-        return incbyte * 1.0 / incclock if incclock > 0 else 0
+
+            if incclock > 0 and incbyte > 0:
+                ins_speed = incbyte * 1.0 / incclock
+            else:
+                ins_speed = 0
+
+        return ins_speed
 
     def close(self):
         self.releaseBuffer()

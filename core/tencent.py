@@ -1,13 +1,13 @@
 
 import os
-from core.common import BasicParser, BasicRespond, BasicVideoInfo, BasicAudioInfo, \
-    CONTENT_TYPE_MAP, make_query, dict_get_key, format_byte, BasicUrlGroup
+from core.common import BasicParser, BasicRespond, BasicVideoInfo, BasicAudioInfo, BasicUserCookie, \
+    CONTENT_TYPE_MAP, make_query, dict_get_key, format_byte, BasicUrlGroup, raw_decompress
 from bs4 import BeautifulSoup
 import re
 import json
 import PyJSCaller
 import time
-from urllib.parse import splittype, splithost, urlencode, unquote, splitvalue, splitquery
+from urllib.parse import splittype, splithost, urlencode, unquote, splitvalue, splitquery, quote
 import CommonVar as cv
 
 
@@ -185,16 +185,31 @@ class Tencent(BasicParser):
     def parse(self, url, quality):
 
         text = self.request(url)
-        # bs4 = BeautifulSoup(text, features='html.parser')
+        bs4 = BeautifulSoup(text, features='html.parser')
         video_info_rex = re.compile('var VIDEO_INFO\s*=\s*({.+?})\s*</script>')
-
 
         video_info = json.loads(video_info_rex.search(text).group(1))
 
+        s1, s2 = splittype(url)
+        host, path = splithost(s2)
+        seg_path = path.split('/')
+        if seg_path[-2] == 'cover':
+            url = bs4.find('link', rel='canonical').get('href')
+            # text = self.request(url)
+            # video_info_rex = re.compile('var VIDEO_INFO\s*=\s*({.+?})\s*</script>')
+
+            # video_info = json.loads(video_info_rex.search(text).group(1))
+            s1, s2 = splittype(url)
+            host, path = splithost(s2)
+            seg_path = path.split('/')
+
+        vid = seg_path[-1].split('.html')[0]
+
+
         # scripts = bs4.findAll('script')
         title = video_info['title']
-
-        self.auth_refresh()
+        if self.cookie_str:
+            self.auth_refresh()
 
         res_videos = []
         for i in quality:
@@ -203,11 +218,7 @@ class Tencent(BasicParser):
                 getckey, createGUID, setdocument = sess.require('getckey', 'createGUID', 'setdocument')
                 setdocument(url)
 
-                s1, s2 = splittype(url)
-                host, path = splithost(s2)
-                seg_path = path.split('/')
 
-                vid = seg_path[-1].split('.html')[0]
 
                 tm = int(time.time())
 
@@ -240,7 +251,7 @@ class Tencent(BasicParser):
                 'cKey': ckey.getValue(),
                 'guid': guid.getValue(),
                 'defn': i,
-                'logintoken': str(new_token).replace("'", '"')
+                "logintoken": new_token
             }
 
             req_vinfoparam = vinfoparam.copy()
@@ -250,11 +261,12 @@ class Tencent(BasicParser):
 
             req_data = str(req_globalparams).replace("'", '"').encode('utf-8')
             text = self.request(method='POST', url='https://vd.l.qq.com/proxyhttp', data=req_data)
-
+            # urlencode()
             res_json = json.loads(text)
             res_json['vinfo'] = json.loads(res_json['vinfo'])
 
-            res_videos.append(TencentRespond(self, res_json, res_json, BasicVideoInfo(url, title, i)))
+            if res_json['vinfo'].get('vl'):
+                res_videos.append(TencentRespond(self, res_json, res_json, BasicVideoInfo(url, title, i)))
 
 
 
@@ -269,16 +281,26 @@ class Tencent(BasicParser):
         new_url = make_query(AUTH_REFRESH_URL, add_params)
 
         res = self.requestRaw(url=new_url)
+        raw = res.read()
+        text = raw_decompress(raw, res.info())
+
+        res.close()
+        res_josn = json.loads(text[text.index('{'):])
+
+        if res_josn['errcode'] != 0:
+            raise Exception('导入的cookie不正确，返回：', res_josn['msg'])
 
         self.user.extract_headers(res.info().get_all('set-cookie'))
         new_cookie_str = self.user.dumps()
         self.saveCookie(new_cookie_str)
         self.loadCookie(new_cookie_str)
+        return True
 
 
 
-class TencentUser:
+class TencentUser(BasicUserCookie):
     def __init__(self):
+        BasicUserCookie.__init__(self)
         self.main_login = ''
         self.openid = ''
         self.appid = ''
@@ -286,16 +308,11 @@ class TencentUser:
         self.vuserid = ''
         self.vusession = ''
 
-        self.extra_info = {}
-
-    def extract(self, cookie_str):
-
-        eles = cookie_str.split(';')
-        for i in eles:
-            self.checkQuery(i)
-
     def checkQuery(self, query):
-        key, value = [i.strip() for i in splitvalue(query)]
+        BasicUserCookie.checkQuery(self, query)
+        if not query:
+            return
+        key, value = [i.strip().strip('"').strip("'") for i in splitvalue(query)]
         if key == 'main_login':
             self.main_login = value
         elif 'openid' in key:
@@ -308,37 +325,27 @@ class TencentUser:
             self.vuserid = value
         elif 'vusession' in key:
             self.vusession = value
-        else:
-            self.extra_info[key] = value
-
 
     def dumps(self):
-        if self.main_login == 'qq':
-            add_info = {
-                'main_login': self.main_login,
-                'vqq_openid': self.openid,
-                'vqq_appid': self.appid,
-                'vqq_access_token': self.access_token,
-                'vqq_vuserid': self.vuserid,
-                'vqq_vusession': self.vusession,
-            }
-        elif self.main_login == 'wx':
-            add_info = {
-                'main_login': self.main_login,
-                'openid': self.openid,
-                'appid': self.appid,
-                'access_token': self.access_token,
-                'vuserid': self.vuserid,
-                'vusession': self.vusession,
-            }
-        else:
-            raise AttributeError('unknown "main_login"')
-
-        add_info.update(self.extra_info)
-        _list = ['%s=%s' % (i[0], i[1]) for i in add_info.items()]
+        _list = []
+        for key, value in self.extra_info.items():
+            if key == 'main_login':
+                value = self.main_login
+            elif 'openid' in key:
+                value = self.openid
+            elif 'appid' in key:
+                value = self.appid
+            elif 'access_token' in key:
+                value = self.access_token
+            elif 'vuserid' in key:
+                value = self.vuserid
+            elif 'vusession' in key:
+                value = self.vusession
+            _list.append('%s=%s' % (key, value))
         return '; '.join(_list)
 
     def extract_headers(self, headers_list):
+
         if headers_list:
             for i in headers_list:
                 self.checkQuery(i.split(';')[0])
@@ -403,6 +410,8 @@ class TencentRespond(BasicRespond):
         return cv.MER_CONCAT_DEMUXER
 
 
+
+
 def init():
     global TENCENT
     TENCENT = Tencent()
@@ -427,6 +436,15 @@ def parse(url, qualitys):
     global TENCENT, QUALITY
     return TENCENT.parse(url, [QUALITY[i] for i in qualitys])
 
+
+def matchParse(url, quality, features):
+    global TENCENT
+    res = TENCENT.parse(url, [quality])
+    for i in res:
+        if i.matchFeature(features):
+            return i
+
+    return None
 
 
 if __name__ == '__main__':
