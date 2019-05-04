@@ -39,7 +39,7 @@ class DialogAbout(wx.Dialog):
             wx.Font(13, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD, False, wx.EmptyString))
 
 
-        text_sites = wx.StaticText(global_panel, wx.ID_ANY, u"爱奇艺、哔哩哔哩", wx.DefaultPosition,
+        text_sites = wx.StaticText(global_panel, wx.ID_ANY, u"爱奇艺、哔哩哔哩、腾讯视频", wx.DefaultPosition,
                                              wx.DefaultSize, 0)
         text_sites.Wrap(-1)
 

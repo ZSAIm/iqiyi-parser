@@ -17,7 +17,9 @@ class Manager(Packer, object):
         self._insp_thr = None
         self.shutdown_flag = False
         self.all_pause_flag = True
-        self.__queue_lock__ = threading.Lock()
+        self.__queue_lock__ = threading.RLock()
+
+        self._done_buff = []
 
     def __insp__(self):
 
@@ -32,16 +34,16 @@ class Manager(Packer, object):
             if not self.queue.undone and self.isEnd():
                 self.checkRunQueue()
                 break
-            time.sleep(0.1)
+            time.sleep(0.01)
 
     def checkRunQueue(self):
         with self.__queue_lock__:
-            tmp = self.queue.run[:]
-            for i in tmp:
+            for i in list(self.queue.run):
                 if self.tasks[i].isEnd():
                     self.tasks[i].close()
                     self.queue.run.remove(i)
                     self.queue.done.append(i)
+                    self._done_buff.append(i)
 
     def getHandler(self, name=None, id=None):
         if name is None and id is None:
@@ -78,15 +80,16 @@ class Manager(Packer, object):
                 return i
 
     def addHandler(self, Handler, name=None):
-        id = self.newId()
+        with self.__queue_lock__:
+            id = self.newId()
 
-        name = id if not name else name
+            name = id if not name else name
 
-        self.tasks[id] = Handler
-        self.name_id[name] = id
+            self.tasks[id] = Handler
+            self.name_id[name] = id
 
-        self.id_map[id] = True
-        self.queue.undone.append(id)
+            self.id_map[id] = True
+            self.queue.undone.append(id)
 
         return id
 
@@ -99,9 +102,10 @@ class Manager(Packer, object):
             return len(self.id_map) - 1
 
     def remove(self, id):
-        del self.tasks[id]
-        self.id_map[id] = False
-        del self.name_id[self.getIdFromName(id)]
+        with self.__queue_lock__:
+            del self.tasks[id]
+            self.id_map[id] = False
+            del self.name_id[self.getIdFromName(id)]
 
     def run(self, id=None):
         with self.__queue_lock__:
@@ -124,35 +128,32 @@ class Manager(Packer, object):
                         if i in self.queue.pause:
                             self.queue.pause.remove(i)
                         self.queue.undone.remove(i)
-                        # else:
-                            #
-                            # if i in self.queue.undone:
-                            #     self.queue.done.append(i)
-                            #     self.queue.undone.remove(i)
 
 
     def pause(self, id=None):
-
+        self._done_buff = []
         if id is not None:
             self.tasks[id].pause()
-            if id in self.queue.run:
-                self.queue.run.remove(id)
-            if id not in self.queue.pause:
-                self.queue.pause.append(id)
+            with self.__queue_lock__:
+                if id in self.queue.run:
+                    self.queue.run.remove(id)
+                if id not in self.queue.pause:
+                    self.queue.pause.append(id)
         else:
             self.all_pause_flag = True
             self._insp_thr.join()
-            tmp = self.getRunQueue()[:]
-            for i in tmp:
-                threading.Thread(target=self.tasks[i].pause).start()
-                if i in self.queue.run:
-                    self.queue.run.remove(i)
-                if i not in self.queue.pause:
-                    self.queue.pause.append(i)
+            with self.__queue_lock__:
+                for i in list(self.getRunQueue()):
+                    threading.Thread(target=self.tasks[i].pause).start()
+                    if i in self.queue.run:
+                        self.queue.run.remove(i)
+                    if i not in self.queue.pause:
+                        self.queue.pause.append(i)
 
             self.checkRunQueue()
 
     def shutdown(self):
+        self._done_buff = []
         self.shutdown_flag = True
         if self._insp_thr:
             self._insp_thr.join()
@@ -177,35 +178,45 @@ class Manager(Packer, object):
             i.join()
 
     def getAvgSpeed(self, id=None):
-        if id is not None:
-            return self.tasks[id].getAvgSpeed()
+        with self.__queue_lock__:
+            if id is not None:
+                return self.tasks[id].getAvgSpeed()
 
-        speed = 0
-        for i in self.queue.run:
-            if not self.tasks[i].isEnd():
-                speed += self.tasks[i].getAvgSpeed()
+            speed = 0
+            for i in self.queue.run:
+                if not self.tasks[i].isEnd():
+                    speed += self.tasks[i].getAvgSpeed()
 
         return speed
 
     def getInsSpeed(self, id=None):
-        if id is not None:
-            return self.tasks[id].getInsSpeed()
+        with self.__queue_lock__:
+            if id is not None:
+                return self.tasks[id].getInsSpeed()
 
-        speed = 0
-        for i in self.queue.run:
-            speed += self.tasks[i].getInsSpeed()
+            speed = 0
+            for i in self.queue.run:
+                speed += self.tasks[i].getInsSpeed()
+
+            for i in list(self._done_buff):
+                tmp = self.tasks[i].getInsSpeed()
+                speed += tmp
+                if tmp < 100:
+                    self._done_buff.remove(i)
+            # self._done_buff = []
         return speed
 
     def getIncByte(self, id=None):
-        if id is not None:
-            return self.tasks[id].getIncByte()
+        with self.__queue_lock__:
+            if id is not None:
+                return self.tasks[id].getIncByte()
 
-        inc = 0
-        for i in self.queue.done:
-            inc += self.tasks[i].getFileSize()
-        for i in self.queue.run:
-            dl = self.tasks[i]
-            inc += dl.getFileSize() - dl.getLeft()
+            inc = 0
+            for i in self.queue.done:
+                inc += self.tasks[i].getFileSize()
+            for i in self.queue.run:
+                dl = self.tasks[i]
+                inc += dl.getFileSize() - dl.getLeft()
 
         return inc
 
@@ -223,27 +234,29 @@ class Manager(Packer, object):
         return size
 
     def getLeft(self, id=None):
-        if id is not None:
-            return self.tasks[id].getLeft()
+        with self.__queue_lock__:
+            if id is not None:
+                return self.tasks[id].getLeft()
 
-        left = 0
-        for i in self.queue.run:
-            if not self.tasks[i].isEnd():
+            left = 0
+            for i in self.queue.run:
+                if not self.tasks[i].isEnd():
+                    left += self.tasks[i].getLeft()
+            for i in self.queue.undone:
                 left += self.tasks[i].getLeft()
-        for i in self.queue.undone:
-            left += self.tasks[i].getLeft()
         return left
 
 
     def isEnd(self, id=None):
-        if id is not None:
-            return self.tasks[id].isEnd()
+        with self.__queue_lock__:
+            if id is not None:
+                return self.tasks[id].isEnd()
 
-        for i in self.queue.run:
-            if not self.tasks[i].isEnd():
-                break
-        else:
-            return True if not self.queue.undone else False
+            for i in self.queue.run:
+                if not self.tasks[i].isEnd():
+                    break
+            else:
+                return True if not self.queue.undone else False
         return False
 
     def config(self, **kwargs):

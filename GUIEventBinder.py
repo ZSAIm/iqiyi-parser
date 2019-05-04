@@ -32,12 +32,12 @@ class FrameDownloader:
         class File:
             @staticmethod
             def bineEvent():
-                items = ('parse', 'settings', 'exit')
+                items = ('logs', 'settings', 'exit')
                 FrameDownloader.MenuBar.batchBind(FrameDownloader.MenuBar.File, gui.frame_downloader.menu_bar.file, items)
 
             @staticmethod
-            def parse(event):
-                pass
+            def logs(event):
+                gui.dialog_dllog.ShowModal()
 
             @staticmethod
             def settings(event):

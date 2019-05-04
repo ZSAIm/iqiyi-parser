@@ -41,7 +41,8 @@ import pyperclip
 import nbdler
 from zipfile import ZipFile
 from core.common import BasicUrlGroup
-
+import traceback
+import io
 
 TOOL_REQ_URL = {
     'ffmpeg': 'https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-3.2-win64-static.zip',
@@ -199,9 +200,17 @@ class UndoneJob:
         except (socket.timeout, URLError, SSLError):
             wx.CallAfter(UndoneJob.timeout)
         else:
-            cv.SEL_RES = sel_res
-            wx.CallAfter(__, sel_res)
+            if not sel_res:
+                wx.CallAfter(UndoneJob.empty)
+            else:
+                cv.SEL_RES = sel_res
+                wx.CallAfter(__, sel_res)
 
+    @staticmethod
+    def empty():
+        dlg = wx.MessageDialog(gui.frame_parse, u'数据返回为空。', u'错误', wx.OK | wx.ICON_ERROR)
+        dlg.ShowModal()
+        dlg.Destroy()
 
 
     @staticmethod
@@ -260,11 +269,21 @@ class FrameParser:
             dlg.Destroy()
 
         @staticmethod
+        def exception(msg):
+            wx.MessageDialog(gui.frame_parse, msg, u'解析异常', wx.OK | wx.ICON_ERROR).ShowModal()
+
+
+        @staticmethod
         def _parse(url, qualitys):
             try:
                 res = parser.parse(url, qualitys)
             except (socket.timeout, URLError, SSLError):
                 wx.CallAfter(FrameParser.ButtonParse.timeout)
+            except Exception as e:
+                msg = traceback.format_exc()
+                # print(traceback.format_exc())
+                wx.CallAfter(FrameParser.ButtonParse.exception, msg)
+
             else:
                 if not res:
                     wx.CallAfter(FrameParser.ButtonParse.empty)
@@ -295,15 +314,15 @@ class FrameParser:
             gui.frame_parse.SetTitle(res[0].getVideoLegalTitle())
 
 
-    class ButtonPath:
-        """Frame Parser Button-[Path] Handler"""
-        @staticmethod
-        def handle():
-            dlg = wx.DirDialog(gui.frame_parse, style=wx.FD_DEFAULT_STYLE)
-            if dlg.ShowModal() == wx.ID_OK:
-                gui.frame_parse.textctrl_path.SetValue(dlg.GetPath())
-                cv.FILEPATH = dlg.GetPath()
-            dlg.Destroy()
+    # class ButtonPath:
+    #     """Frame Parser Button-[Path] Handler"""
+    #     @staticmethod
+    #     def handle():
+    #         dlg = wx.DirDialog(gui.frame_parse, style=wx.FD_DEFAULT_STYLE)
+    #         if dlg.ShowModal() == wx.ID_OK:
+    #             gui.frame_parse.textctrl_path.SetValue(dlg.GetPath())
+    #             cv.FILEPATH = dlg.GetPath()
+    #         dlg.Destroy()
 
 
     class MenuCopyLink:
@@ -466,6 +485,8 @@ class FrameDownload:
     """Frame Download Handler"""
     @staticmethod
     def handle():
+        # io
+        # gui.dialog_dllog.start_logger()
         gui.frame_parse.Hide()
         FrameDownload.Download.handle()
 
