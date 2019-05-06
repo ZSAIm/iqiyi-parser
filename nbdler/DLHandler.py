@@ -228,10 +228,14 @@ class Handler(Packer, object):
         if self.file.size == -1 and self._batchnode_bak and self._wait_for_run:
             self.batchAdd(**self._batchnode_bak)
         if self.__new_project__:
+            if self.file.size == 0:
+                self.globalprog.close()
+                return
             if not self.file.makeFile():
                 return
             if self.file.size == -1:
                 return
+
             self.globalprog.allotter.makeBaseConn()
             self.globalprog.save()
 

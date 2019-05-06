@@ -480,7 +480,7 @@ class FrameParser:
         @staticmethod
         def do(parser_info):
             avl = list(parser_info.keys())
-            dlg = wx.MultiChoiceDialog(None, u'以下核心可以更新', u'更新核心', avl)
+            dlg = wx.MultiChoiceDialog(gui.frame_parse, u'以下核心可以更新', u'更新核心', avl)
             if dlg.ShowModal() != wx.ID_OK:
                 dlg.Destroy()
                 return False
@@ -492,7 +492,7 @@ class FrameParser:
                 dl = nbdler.open(urls=[urljoin(cv.REPO, avl[i])], max_conn=3, filename=avl[i] + '.gzip', block_size=1,
                                  filepath=cv.PARSER_PATH)
                 dlm.addHandler(dl)
-                dlg = gui.DialogGetTool(gui.frame_downloader, u'正在下载 %s.gzip' % avl[i], dl.getFileSize(), dlm)
+                dlg = gui.DialogGetTool(gui.frame_parse, u'正在下载 %s.gzip' % avl[i], dl.getFileSize(), dlm)
 
                 dlg.Bind(wx.EVT_TIMER, GetTool._process, dlg.timer)
                 dlg.timer.Start(50, oneShot=False)
@@ -501,12 +501,17 @@ class FrameParser:
                 if msg != wx.ID_OK:
                     return False
                 else:
-                    with open(os.path.join(cv.PARSER_PATH, avl[i]), 'w') as f:
-                        f.write(gzip.open(os.path.join(cv.PARSER_PATH, avl[i] + '.gzip')).read().decode('utf-8'))
-                    os.remove(os.path.join(cv.PARSER_PATH, avl[i] + '.gzip'))
+                    try:
+                        with open(os.path.join(cv.PARSER_PATH, avl[i]), 'w') as f:
+                            f.write(gzip.open(os.path.join(cv.PARSER_PATH, avl[i] + '.gzip')).read().decode('utf-8'))
+                        os.remove(os.path.join(cv.PARSER_PATH, avl[i] + '.gzip'))
+                    except:
+                        dlg = wx.MessageDialog(gui.frame_parse, traceback.format_exc(), avl[i], wx.OK | wx.ICON_ERROR)
+                        dlg.ShowModal()
+                        dlg.Destroy()
 
             dlg.Destroy()
-            dlg = wx.MessageDialog(gui.frame_downloader, '核心更新完成！', '提示', wx.OK | wx.ICON_INFORMATION)
+            dlg = wx.MessageDialog(gui.frame_parse, '核心更新完成！', '提示', wx.OK | wx.ICON_INFORMATION)
             dlg.ShowModal()
             dlg.Destroy()
 

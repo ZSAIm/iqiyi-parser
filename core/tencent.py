@@ -287,7 +287,7 @@ class Tencent(BasicParser):
         res_josn = json.loads(text[text.index('{'):])
 
         if res_josn['errcode'] != 0:
-            raise Exception('incorrect cookie£¬return:', res_josn['msg'])
+            raise Exception('incorrect cookie, return:', res_josn['msg'])
 
         self.user.extract_headers(res.info().get_all('set-cookie'))
         new_cookie_str = self.user.dumps()

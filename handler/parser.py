@@ -73,7 +73,7 @@ def matchParse(url, quality, features):
 
 def init():
     error_msg = []
-    if os.path.exists(cv.PARSER_PATH):
+    if not os.path.exists(cv.PARSER_PATH):
         os.mkdir(cv.PARSER_PATH)
     for i, j in cv.PARAER_DOMAIN_MAPPING.items():
         name, ext = os.path.splitext(i)
