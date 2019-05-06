@@ -323,6 +323,7 @@ class Processor(object):
                     if len(buff) != 0:
                         self.buffer(buff)
                         buff = []
+                        self.close()
                     break
                 elif rest < 4096:
                     buff += sock.recv(rest)

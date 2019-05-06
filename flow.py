@@ -43,6 +43,14 @@ from zipfile import ZipFile
 from core.common import BasicUrlGroup
 import traceback
 import io
+from hashlib import md5
+from urllib.request import urlopen, Request
+from urllib.parse import urljoin
+from core.common import raw_decompress
+import gzip, json
+
+m = md5()
+res = m.update('hahahaaaaaa'.encode('utf-8'))
 
 TOOL_REQ_URL = {
     'ffmpeg': 'https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-3.2-win64-static.zip',
@@ -50,6 +58,16 @@ TOOL_REQ_URL = {
 
 }
 
+# CORE_REQ_URL = 'https://github.com/ZSAIm/iqiyi-parser/tree/master/core'
+
+
+HEADERS = {
+    'Connection': 'keep-alive',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
+}
 
 
 class Entry:
@@ -57,20 +75,88 @@ class Entry:
     @staticmethod
     def handle():
         settings.loadConfig()
-        if ToolReq.handle():
+        if GetTool.handle():
+            LoadParserCore.handle()
             UndoneJob.handle()
         else:
             ShutDown.handle()
 
-class ToolReq:
+
+
+class LoadParserCore:
     @staticmethod
     def handle():
-        if not ToolReq.checkNode():
+        err_msg = parser.init()
+        if err_msg:
+            dlg = wx.MessageDialog(None, '\n'.join(err_msg), u'加载错误信息', wx.OK | wx.ICON_ERROR)
+            dlg.ShowModal()
+
+
+
+class UpdateParser:
+    @staticmethod
+    def handle():
+
+        parser_info = UpdateParser.prepare()
+
+        UpdateParser.do(parser_info)
+
+    @staticmethod
+    def prepare():
+        req = Request(urljoin(cv.REPO, 'repo'), headers=HEADERS)
+        res = urlopen(req)
+        text = raw_decompress(res.read(), res.info())
+        parser_info = json.loads(text)
+
+        __md5 = md5()
+        for i, j in list(parser_info.items()):
+            if os.path.exists(os.path.join(cv.PARSER_PATH, i)):
+                with open(os.path.join(cv.PARSER_PATH, i), 'rb') as f:
+                    __md5.update(f.read())
+                    if __md5.hexdigest() == j:
+                        del parser_info[i]
+
+        # avl = list(parser_info.keys())
+        dlg = wx.MultiChoiceDialog(gui.frame_parse, u'以下核心可以更新', u'更新解析核心', list(parser_info.keys()))
+        dlg.GetSelections()
+        pass
+        # dlg = wx.MessageDialog(None, u'以下程序可以更新', u'提示', wx.YES_NO | wx.ICON_INFORMATION)
+
+        return parser_info
+
+    @staticmethod
+    def do(parser_info):
+
+        for i, j in parser_info.items():
+            dlm = nbdler.Manager()
+            dl = nbdler.open(urls=[urljoin(cv.REPO, i)], max_conn=3, filename=i + '.gzip', block_size=1, filepath=cv.PARSER_PATH)
+            dlm.addHandler(dl)
+            dlg = gui.DialogGetTool(gui.frame_downloader, u'正在下载 %s.gzip' % i, dl.getFileSize(), dlm)
+
+            dlg.Bind(wx.EVT_TIMER, GetTool._process, dlg.timer)
+            dlg.timer.Start(50, oneShot=False)
+            dlm.run()
+            msg = dlg.ShowModal()
+            if msg != wx.ID_OK:
+                return False
+            else:
+                os.path.join(cv.PARSER_PATH, i)
+                with open(os.path.join(cv.PARSER_PATH, i), 'w') as f:
+                    f.write(gzip.open(i+'.gzip').read())
+
+
+class GetTool:
+    @staticmethod
+    def handle():
+        if not GetTool.checkNode():
             return False
 
-        if not ToolReq.checkFfmpeg():
+        if not GetTool.checkFfmpeg():
             return False
         return True
+
+
+
 
     @staticmethod
     def unzip_ffmpeg(zipfile):
@@ -97,7 +183,7 @@ class ToolReq:
             dlm.addHandler(dl)
             dlg = gui.DialogGetTool(gui.frame_downloader, u'正在下载 Ffmpeg 3.2.zip', dl.getFileSize(), dlm)
 
-            dlg.Bind(wx.EVT_TIMER, ToolReq._process, dlg.timer)
+            dlg.Bind(wx.EVT_TIMER, GetTool._process, dlg.timer)
             dlg.timer.Start(50, oneShot=False)
             dlm.run()
             msg = dlg.ShowModal()
@@ -105,7 +191,7 @@ class ToolReq:
                 dlm.shutdown()
                 dlg.Destroy()
                 return False
-            ToolReq.unzip_ffmpeg('ffmpeg.zip')
+            GetTool.unzip_ffmpeg('ffmpeg.zip')
             if msg == wx.ID_OK:
                 return True
             else:
@@ -125,7 +211,7 @@ class ToolReq:
             dlm.addHandler(dl)
             dlg = gui.DialogGetTool(gui.frame_downloader, u'正在下载 Nodejs v10.15.3', dl.getFileSize(), dlm)
 
-            dlg.Bind(wx.EVT_TIMER, ToolReq._process, dlg.timer)
+            dlg.Bind(wx.EVT_TIMER, GetTool._process, dlg.timer)
             dlg.timer.Start(50, oneShot=False)
             dlm.run()
             msg = dlg.ShowModal()

@@ -10,7 +10,6 @@ import time
 from urllib.parse import splittype, splithost, urlencode, unquote, splitvalue, splitquery, quote
 import CommonVar as cv
 
-
 TENCENT = None
 LASTRES = None
 
@@ -265,9 +264,9 @@ class Tencent(BasicParser):
             res_json = json.loads(text)
             res_json['vinfo'] = json.loads(res_json['vinfo'])
 
+            print(res_json)
             if res_json['vinfo'].get('vl'):
                 res_videos.append(TencentRespond(self, res_json, res_json, BasicVideoInfo(url, title, i)))
-
 
 
         return res_videos
@@ -288,7 +287,7 @@ class Tencent(BasicParser):
         res_josn = json.loads(text[text.index('{'):])
 
         if res_josn['errcode'] != 0:
-            raise Exception('导入的cookie不正确，返回：', res_josn['msg'])
+            raise Exception('incorrect cookie imported，return:', res_josn['msg'])
 
         self.user.extract_headers(res.info().get_all('set-cookie'))
         new_cookie_str = self.user.dumps()

@@ -11,6 +11,8 @@ FILE_URL = {
 
 
 
+
+
 def setUndoneJob(url, title, quality, features):
     cv.UNDONE_JOB = {
         'url': url,
@@ -44,6 +46,11 @@ def saveConfig():
     config.set('Settings', 'last_save_path', str(cv.FILEPATH))
     config.set('Settings', 'undone_job', str(cv.UNDONE_JOB))
     config.set('Settings', 'ffmpeg', str(cv.FFMPEG_PATH))
+    config.add_section('ParserCore')
+    config.set('ParserCore', 'repo', str(cv.REPO))
+    config.set('ParserCore', 'parser_path', str(cv.PARSER_PATH))
+    config.set('ParserCore', 'parser_domain_mapping', str(cv.PARAER_DOMAIN_MAPPING))
+
 
     with open('config.ini', 'w') as f:
         config.write(f)
@@ -67,6 +74,9 @@ def __loadConfig__():
         cv.FFMPEG_PATH = config.get('Settings', 'ffmpeg')
 
         cv.UNDONE_JOB = eval(undonejob) if undonejob else ''
+        cv.repo = config.get('ParserCore', 'repo')
+        cv.PARAER_DOMAIN_MAPPING = eval(config.get('ParserCore', 'parser_domain_mapping'))
+        cv.PARSER_PATH = config.get('ParserCore', 'parser_path')
     except (NoSectionError, NoOptionError):
         initConfig()
 
