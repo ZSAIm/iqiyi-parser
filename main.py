@@ -35,11 +35,11 @@ def wait_thread():
 
 
 if __name__ == '__main__':
-    with open('error.log', 'a+') as ferr:
-        ferr.write('------------------------\n')
-        ferr.write('%s\n' % time.asctime(time.localtime(time.time())))
-        ferr.write('------------------------\n')
-        sys.stderr = ferr
+    # with open('error.log', 'a+') as ferr:
+    #     ferr.write('------------------------\n')
+    #     ferr.write('%s\n' % time.asctime(time.localtime(time.time())))
+    #     ferr.write('------------------------\n')
+    #     sys.stderr = ferr
 
         gui.init()
         GUIEventBinder.init()

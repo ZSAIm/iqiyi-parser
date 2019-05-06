@@ -228,7 +228,7 @@ class BasicRespond:
 
 
     def getVideoLegalTitle(self):
-        return re.sub('[\\/:\?<>\|\*"]', ' ', self.getVideoTitle())
+        return re.sub('[\\/:\?<>\|\*"\.]', ' ', self.getVideoTitle()).strip()
 
 
 
