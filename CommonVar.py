@@ -18,7 +18,8 @@ PARAER_DOMAIN_MAPPING = {
 PARSER_PATH = 'core'
 
 
-REPO = 'https://raw.githubusercontent.com/ZSAIm/iqiyi-parser/master/core/'
+# REPO = 'https://raw.githubusercontent.com/ZSAIm/iqiyi-parser/master/core/'
+REPO = 'https://raw.githubusercontent.com/ZSAIm/iqiyi-parser/zsaim/core/'
 
 
 

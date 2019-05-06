@@ -153,7 +153,7 @@ class Menu_Help(wx.Menu):
 
         self.AppendSeparator()
 
-        self.update = wx.MenuItem(self, wx.ID_ANY, 'Update', wx.EmptyString, wx.ITEM_NORMAL)
+        self.update = wx.MenuItem(self, wx.ID_ANY, 'Update Core', wx.EmptyString, wx.ITEM_NORMAL)
         self.Append(self.update)
 
 

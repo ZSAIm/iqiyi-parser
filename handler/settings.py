@@ -48,8 +48,8 @@ def saveConfig():
     config.set('Settings', 'ffmpeg', str(cv.FFMPEG_PATH))
     config.add_section('ParserCore')
     config.set('ParserCore', 'repo', str(cv.REPO))
-    config.set('ParserCore', 'parser_path', str(cv.PARSER_PATH))
-    config.set('ParserCore', 'parser_domain_mapping', str(cv.PARAER_DOMAIN_MAPPING))
+    config.set('ParserCore', 'path', str(cv.PARSER_PATH))
+    config.set('ParserCore', 'mapping', str(cv.PARAER_DOMAIN_MAPPING))
 
 
     with open('config.ini', 'w') as f:
@@ -75,8 +75,8 @@ def __loadConfig__():
 
         cv.UNDONE_JOB = eval(undonejob) if undonejob else ''
         cv.repo = config.get('ParserCore', 'repo')
-        cv.PARAER_DOMAIN_MAPPING = eval(config.get('ParserCore', 'parser_domain_mapping'))
-        cv.PARSER_PATH = config.get('ParserCore', 'parser_path')
+        cv.PARAER_DOMAIN_MAPPING = eval(config.get('ParserCore', 'mapping'))
+        cv.PARSER_PATH = config.get('ParserCore', 'path')
     except (NoSectionError, NoOptionError):
         initConfig()
 

@@ -121,13 +121,13 @@ class FrameParser:
 
             @staticmethod
             def about(event):
-                dlg = gui.DialogAbout(gui.frame_downloader)
+                dlg = gui.DialogAbout(gui.frame_parse)
                 dlg.ShowModal()
                 dlg.Destroy()
 
             @staticmethod
             def update(event):
-                flow.UpdateParser.handle()
+                flow.FrameParser.UpdateParser.handle()
 
         @staticmethod
         def batchBind(handler_parent, source_parent, items_name):
@@ -192,7 +192,7 @@ class FrameMerger:
 
             @staticmethod
             def about(event):
-                dlg = gui.DialogAbout(gui.frame_downloader)
+                dlg = gui.DialogAbout(gui.frame_merger)
                 dlg.ShowModal()
                 dlg.Destroy()
 

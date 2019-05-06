@@ -42,15 +42,12 @@ import nbdler
 from zipfile import ZipFile
 from core.common import BasicUrlGroup
 import traceback
-import io
+# import io, importlib
 from hashlib import md5
 from urllib.request import urlopen, Request
 from urllib.parse import urljoin
 from core.common import raw_decompress
 import gzip, json
-
-m = md5()
-res = m.update('hahahaaaaaa'.encode('utf-8'))
 
 TOOL_REQ_URL = {
     'ffmpeg': 'https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-3.2-win64-static.zip',
@@ -58,7 +55,6 @@ TOOL_REQ_URL = {
 
 }
 
-# CORE_REQ_URL = 'https://github.com/ZSAIm/iqiyi-parser/tree/master/core'
 
 
 HEADERS = {
@@ -88,61 +84,9 @@ class LoadParserCore:
     def handle():
         err_msg = parser.init()
         if err_msg:
-            dlg = wx.MessageDialog(None, '\n'.join(err_msg), u'加载错误信息', wx.OK | wx.ICON_ERROR)
+            dlg = wx.MessageDialog(gui.frame_parse, '\n'.join(err_msg), u'核心加载错误信息', wx.OK | wx.ICON_ERROR)
             dlg.ShowModal()
 
-
-
-class UpdateParser:
-    @staticmethod
-    def handle():
-
-        parser_info = UpdateParser.prepare()
-
-        UpdateParser.do(parser_info)
-
-    @staticmethod
-    def prepare():
-        req = Request(urljoin(cv.REPO, 'repo'), headers=HEADERS)
-        res = urlopen(req)
-        text = raw_decompress(res.read(), res.info())
-        parser_info = json.loads(text)
-
-        __md5 = md5()
-        for i, j in list(parser_info.items()):
-            if os.path.exists(os.path.join(cv.PARSER_PATH, i)):
-                with open(os.path.join(cv.PARSER_PATH, i), 'rb') as f:
-                    __md5.update(f.read())
-                    if __md5.hexdigest() == j:
-                        del parser_info[i]
-
-        # avl = list(parser_info.keys())
-        dlg = wx.MultiChoiceDialog(gui.frame_parse, u'以下核心可以更新', u'更新解析核心', list(parser_info.keys()))
-        dlg.GetSelections()
-        pass
-        # dlg = wx.MessageDialog(None, u'以下程序可以更新', u'提示', wx.YES_NO | wx.ICON_INFORMATION)
-
-        return parser_info
-
-    @staticmethod
-    def do(parser_info):
-
-        for i, j in parser_info.items():
-            dlm = nbdler.Manager()
-            dl = nbdler.open(urls=[urljoin(cv.REPO, i)], max_conn=3, filename=i + '.gzip', block_size=1, filepath=cv.PARSER_PATH)
-            dlm.addHandler(dl)
-            dlg = gui.DialogGetTool(gui.frame_downloader, u'正在下载 %s.gzip' % i, dl.getFileSize(), dlm)
-
-            dlg.Bind(wx.EVT_TIMER, GetTool._process, dlg.timer)
-            dlg.timer.Start(50, oneShot=False)
-            dlm.run()
-            msg = dlg.ShowModal()
-            if msg != wx.ID_OK:
-                return False
-            else:
-                os.path.join(cv.PARSER_PATH, i)
-                with open(os.path.join(cv.PARSER_PATH, i), 'w') as f:
-                    f.write(gzip.open(i+'.gzip').read())
 
 
 class GetTool:
@@ -400,16 +344,6 @@ class FrameParser:
             gui.frame_parse.SetTitle(res[0].getVideoLegalTitle())
 
 
-    # class ButtonPath:
-    #     """Frame Parser Button-[Path] Handler"""
-    #     @staticmethod
-    #     def handle():
-    #         dlg = wx.DirDialog(gui.frame_parse, style=wx.FD_DEFAULT_STYLE)
-    #         if dlg.ShowModal() == wx.ID_OK:
-    #             gui.frame_parse.textctrl_path.SetValue(dlg.GetPath())
-    #             cv.FILEPATH = dlg.GetPath()
-    #         dlg.Destroy()
-
 
     class MenuCopyLink:
         """Frame Parser Button-[Copy] Handler"""
@@ -515,7 +449,68 @@ class FrameParser:
             dlg.ShowModal()
             dlg.Destroy()
 
+    class UpdateParser:
+        @staticmethod
+        def handle():
+            parser_info = FrameParser.UpdateParser.prepare()
+            if parser_info:
+                FrameParser.UpdateParser.do(parser_info)
+            else:
+                dlg = wx.MessageDialog(gui.frame_downloader, '解析核心已经是最新了！', '提示', wx.OK | wx.ICON_INFORMATION)
+                dlg.ShowModal()
+                dlg.Destroy()
 
+        @staticmethod
+        def prepare():
+            req = Request(urljoin(cv.REPO, 'repo'), headers=HEADERS)
+            res = urlopen(req)
+            text = raw_decompress(res.read(), res.info())
+            parser_info = eval(text)
+
+            for i, j in list(parser_info.items()):
+                if os.path.exists(os.path.join(cv.PARSER_PATH, i)):
+                    with open(os.path.join(cv.PARSER_PATH, i), 'rb') as f:
+                        _md5 = md5()
+                        _md5.update(f.read())
+                        if _md5.hexdigest() == j:
+                            del parser_info[i]
+
+            return parser_info
+
+        @staticmethod
+        def do(parser_info):
+            avl = list(parser_info.keys())
+            dlg = wx.MultiChoiceDialog(None, u'以下核心可以更新', u'更新核心', avl)
+            if dlg.ShowModal() != wx.ID_OK:
+                dlg.Destroy()
+                return False
+            sel = dlg.GetSelections()
+            for i in sel:
+
+                # for i, j in parser_info.items():
+                dlm = nbdler.Manager()
+                dl = nbdler.open(urls=[urljoin(cv.REPO, avl[i])], max_conn=3, filename=avl[i] + '.gzip', block_size=1,
+                                 filepath=cv.PARSER_PATH)
+                dlm.addHandler(dl)
+                dlg = gui.DialogGetTool(gui.frame_downloader, u'正在下载 %s.gzip' % avl[i], dl.getFileSize(), dlm)
+
+                dlg.Bind(wx.EVT_TIMER, GetTool._process, dlg.timer)
+                dlg.timer.Start(50, oneShot=False)
+                dlm.run()
+                msg = dlg.ShowModal()
+                if msg != wx.ID_OK:
+                    return False
+                else:
+                    with open(os.path.join(cv.PARSER_PATH, avl[i]), 'w') as f:
+                        f.write(gzip.open(os.path.join(cv.PARSER_PATH, avl[i] + '.gzip')).read().decode('utf-8'))
+                    os.remove(os.path.join(cv.PARSER_PATH, avl[i] + '.gzip'))
+
+            dlg.Destroy()
+            dlg = wx.MessageDialog(gui.frame_downloader, '核心更新完成！', '提示', wx.OK | wx.ICON_INFORMATION)
+            dlg.ShowModal()
+            dlg.Destroy()
+
+            LoadParserCore.handle()
 
 
     class MenuGoDownload:

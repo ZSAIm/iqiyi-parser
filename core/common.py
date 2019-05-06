@@ -343,3 +343,19 @@ def matchParse(url, quality, features):
             return i
 
     return None
+
+
+if __name__ == '__main__':
+    import os, json
+    from hashlib import md5
+    core_md5 = {}
+    for i in os.listdir('.'):
+        if i != '__init__.py' and i != 'common.py' and i != 'repo':
+            _md5 = md5()
+            with open(i, 'rb') as f:
+                _md5.update(f.read())
+            core_md5[i] = _md5.hexdigest()
+
+    with open('repo', 'w') as f:
+        f.write(json.dumps(core_md5))
+
