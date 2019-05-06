@@ -141,16 +141,20 @@ class Menu_File(wx.Menu):
 class Menu_Help(wx.Menu):
     def __init__(self, *args):
         wx.Menu.__init__(self, *args)
-
+        self.update = None
         self.about = None
 
         self.initMenuItems()
 
     def initMenuItems(self):
+
         self.about = wx.MenuItem(self, wx.ID_ANY, '&About\tF1', wx.EmptyString, wx.ITEM_NORMAL)
         self.Append(self.about)
 
+        self.AppendSeparator()
 
+        self.update = wx.MenuItem(self, wx.ID_ANY, 'Update Core', wx.EmptyString, wx.ITEM_NORMAL)
+        self.Append(self.update)
 
 
 

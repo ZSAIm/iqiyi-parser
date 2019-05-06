@@ -300,7 +300,7 @@ class GlobalProgress(Packer, object):
 
     def checkAllGoEnd(self):
 
-        for i in self.progresses.values():
+        for i in list(self.progresses.values()):
             if not i.status.go_end:
                 break
         else:

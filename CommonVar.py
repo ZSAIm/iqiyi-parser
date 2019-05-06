@@ -8,6 +8,21 @@ ALLTASKDONE = False
 
 SEL_RES = None
 
+PARAER_DOMAIN_MAPPING = {
+    'iqiyi.py': ['iqiyi.com'],
+    'bilibili.py': ['bilibili.com'],
+    'tencent.py': ['v.qq'],
+    'youku.py': ['youku'],
+
+}
+PARSER_PATH = 'core'
+
+
+# REPO = 'https://raw.githubusercontent.com/ZSAIm/iqiyi-parser/master/core/'
+REPO = 'https://raw.githubusercontent.com/ZSAIm/iqiyi-parser/zsaim/core/'
+
+
+
 
 # copy link
 CPYLINK_SEL_ITEMS = {}

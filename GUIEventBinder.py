@@ -116,14 +116,18 @@ class FrameParser:
         class Help:
             @staticmethod
             def bindEvent():
-                items = ('about',)
+                items = ('about', 'update')
                 FrameParser.MemuBar.batchBind(FrameParser.MemuBar.Help, gui.frame_parse.menu_bar.help, items)
 
             @staticmethod
             def about(event):
-                dlg = gui.DialogAbout(gui.frame_downloader)
+                dlg = gui.DialogAbout(gui.frame_parse)
                 dlg.ShowModal()
                 dlg.Destroy()
+
+            @staticmethod
+            def update(event):
+                flow.FrameParser.UpdateParser.handle()
 
         @staticmethod
         def batchBind(handler_parent, source_parent, items_name):
@@ -188,7 +192,7 @@ class FrameMerger:
 
             @staticmethod
             def about(event):
-                dlg = gui.DialogAbout(gui.frame_downloader)
+                dlg = gui.DialogAbout(gui.frame_merger)
                 dlg.ShowModal()
                 dlg.Destroy()
 

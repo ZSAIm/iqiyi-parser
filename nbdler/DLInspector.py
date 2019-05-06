@@ -43,8 +43,8 @@ class Inspector(object):
             if self.globalprog.status.endflag or self.globalprog.status.pauseflag:
                 break
 
-            progresses = self.globalprog.progresses.copy()
-            for i in progresses.values():
+            # progresses = self.globalprog.progresses.copy()
+            for i in list(self.globalprog.progresses.values()):
                 if not i.processor.isGoEnd() and not i.processor.isRunning():
                     if self.globalprog.pause_req:
                         return
