@@ -61,7 +61,7 @@ HEADERS = {
     'Connection': 'keep-alive',
     'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
-    'Accept-Encoding': 'gzip, deflate, br',
+    'Accept-Encoding': 'gzip',
     'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
 }
 
@@ -480,7 +480,7 @@ class FrameParser:
         @staticmethod
         def do(parser_info):
             avl = list(parser_info.keys())
-            dlg = wx.MultiChoiceDialog(None, u'以下核心可以更新', u'更新核心', avl)
+            dlg = wx.MultiChoiceDialog(gui.frame_parse, u'以下核心可以更新', u'更新核心', avl)
             if dlg.ShowModal() != wx.ID_OK:
                 dlg.Destroy()
                 return False
@@ -492,7 +492,7 @@ class FrameParser:
                 dl = nbdler.open(urls=[urljoin(cv.REPO, avl[i])], max_conn=3, filename=avl[i] + '.gzip', block_size=1,
                                  filepath=cv.PARSER_PATH)
                 dlm.addHandler(dl)
-                dlg = gui.DialogGetTool(gui.frame_downloader, u'正在下载 %s.gzip' % avl[i], dl.getFileSize(), dlm)
+                dlg = gui.DialogGetTool(gui.frame_parse, u'正在下载 %s.gzip' % avl[i], dl.getFileSize(), dlm)
 
                 dlg.Bind(wx.EVT_TIMER, GetTool._process, dlg.timer)
                 dlg.timer.Start(50, oneShot=False)
@@ -501,12 +501,17 @@ class FrameParser:
                 if msg != wx.ID_OK:
                     return False
                 else:
-                    with open(os.path.join(cv.PARSER_PATH, avl[i]), 'w') as f:
-                        f.write(gzip.open(os.path.join(cv.PARSER_PATH, avl[i] + '.gzip')).read().decode('utf-8'))
-                    os.remove(os.path.join(cv.PARSER_PATH, avl[i] + '.gzip'))
+                    try:
+                        with open(os.path.join(cv.PARSER_PATH, avl[i]), 'w') as f:
+                            f.write(gzip.open(os.path.join(cv.PARSER_PATH, avl[i] + '.gzip')).read().decode('utf-8'))
+                        os.remove(os.path.join(cv.PARSER_PATH, avl[i] + '.gzip'))
+                    except:
+                        dlg = wx.MessageDialog(gui.frame_parse, traceback.format_exc(), avl[i], wx.OK | wx.ICON_ERROR)
+                        dlg.ShowModal()
+                        dlg.Destroy()
 
             dlg.Destroy()
-            dlg = wx.MessageDialog(gui.frame_downloader, '核心更新完成！', '提示', wx.OK | wx.ICON_INFORMATION)
+            dlg = wx.MessageDialog(gui.frame_parse, '核心更新完成！', '提示', wx.OK | wx.ICON_INFORMATION)
             dlg.ShowModal()
             dlg.Destroy()
 
@@ -592,7 +597,7 @@ class FrameDownload:
                 gui.frame_downloader.insertBlock(i + cv.SEL_RES.getVideoTotal())
 
             gui.setTimerHandler(downloader.getProcessEvent())
-            gui.runTimer(300, False)
+            gui.runTimer(500, False)
             gui.frame_downloader.Show(True)
 
         @staticmethod
@@ -643,7 +648,7 @@ class Merge:
         audio_dst = downloader.getDstAudioFilePath()
 
         if video_src:
-            if len(video_src) == 1:
+            if len(video_src) == 1 and cv.TARGET_FORMAT == '':
                 shutil.move(video_src[0], video_dst)
             else:
                 # mer = merger.make(video_dst, video_src, method=merger.MET_CONCAT, merger=cv.SEL_RES.getConcatMerger())
@@ -652,7 +657,7 @@ class Merge:
                 mer.join()
 
         if audio_src:
-            if len(audio_src) == 1:
+            if len(audio_src) == 1 and cv.TARGET_FORMAT == '':
                 shutil.move(audio_src[0], audio_dst)
             else:
                 # mer = merger.make(audio_dst, audio_src, method=merger.MET_CONCAT, merger=cv.SEL_RES.getConcatMerger())
@@ -717,13 +722,19 @@ class ConfigSettings:
 class ShutDown:
     @staticmethod
     def handle():
+        gui.dialog_dllog.Show()
+        threading.Thread(target=ShutDown._do).start()
+
+    @staticmethod
+    def _do():
         thr = threading.Thread(target=ShutDown._shutdown)
         thr.start()
         thr.join()
-        ShutDown.destroy_frame()
+        wx.CallAfter(ShutDown.destroy_frame)
 
     @staticmethod
     def destroy_frame():
+        gui.dialog_dllog.Destroy()
         gui.frame_parse.Destroy()
         gui.frame_downloader.Destroy()
         gui.frame_merger.Destroy()
@@ -731,6 +742,7 @@ class ShutDown:
 
     @staticmethod
     def _shutdown():
+
         cv.SHUTDOWN = True
         merger.shutdown()
         downloader.shutdown()

@@ -47,6 +47,9 @@ class Handler:
 
         self.wait_for_run = False
 
+        self._undone_list = []
+
+
     def prepare(self, res):
         self.filepath = cv.FILEPATH
         self.max_task = cv.MAX_TASK
@@ -115,6 +118,7 @@ class Handler:
         self.dlm.config(max_task=self.max_task)
 
         self.generate_name()
+        self._undone_list = self.video_filenames[:]
         if len(self.video_filenames) + len(self.audio_filenames) > 100:
             self.wait_for_run = True
         path = os.path.join(self.filepath, self._title)
@@ -236,11 +240,13 @@ class Handler:
                 # self.video_filenames.append(tmp_names)
 
     def is_all_files_done(self):
-        for i in self.video_filenames:
+        for i in list(self._undone_list):
             if not os.path.exists(os.path.join(self.filepath, self._title, i)) or \
                     os.path.exists(os.path.join(self.filepath, self._title, i + '.nbdler')):
                 break
-
+            else:
+                if i in self._undone_list:
+                    self._undone_list.remove(i)
         else:
             return True
 

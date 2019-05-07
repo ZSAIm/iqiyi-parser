@@ -410,6 +410,9 @@ class File(Packer, object):
                 raise Exception('DirNoFound', self.path)
 
         with open(os.path.join(self.path, self.name), 'wb') as f:
+            if self.size == 0:
+                f.write(b'\x00')
+                return
             f.seek(self.size - 1)
             f.write(b'\x00')
         return True

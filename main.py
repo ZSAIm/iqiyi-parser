@@ -15,7 +15,7 @@ import socket
 import threading
 import flow
 import handler
-from handler.logs import StdoutPipe
+from handler.logs import STDRedirect
 
 socket.setdefaulttimeout(3)
 
@@ -44,7 +44,8 @@ if __name__ == '__main__':
         gui.init()
         GUIEventBinder.init()
 
-        sys.stdout = StdoutPipe()
+        sys.stdout = STDRedirect(sys.stdout)
+        sys.stderr = STDRedirect(sys.stderr)
         main()
         gui.MainLoop()
 

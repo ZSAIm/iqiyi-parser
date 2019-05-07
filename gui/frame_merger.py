@@ -94,13 +94,16 @@ class MergerMenuBar(wx.MenuBar):
 class Menu_File(wx.Menu):
     def __init__(self, *args):
         wx.Menu.__init__(self, *args)
-
+        self.logs = None
         self.exit = None
 
         self.initMenuItems()
 
     def initMenuItems(self):
+        self.logs = wx.MenuItem(self, wx.ID_ANY, '&Logs\tF2', wx.EmptyString, wx.ITEM_NORMAL)
 
+        self.Append(self.logs)
+        self.AppendSeparator()
         self.exit = wx.MenuItem(self, wx.ID_ANY, 'Exit', wx.EmptyString, wx.ITEM_NORMAL)
 
         self.Append(self.exit)
