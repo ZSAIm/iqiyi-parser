@@ -7,8 +7,9 @@ import re
 import json
 import PyJSCaller
 import time
-from urllib.parse import splittype, splithost, urlencode, unquote, splitvalue, splitquery, quote
+from urllib.parse import splittype, splithost, urlencode, unquote, splitvalue, splitquery, quote, urljoin
 import CommonVar as cv
+import random
 
 TENCENT = None
 LASTRES = None
@@ -164,7 +165,57 @@ global_params = {
 
 }
 
+"""
+i = {
+    otype: b ? "ojson" : "json",
+    vid: a.vid,
+    format: d(this.dataset.getinfoData.fl.fi),
+    filename: a.newFileName,
+    platform: this.context.dataset.platform,
+    appVer: Txplayer.dataset.ver,
+    vt: a.vt,
+    sdtfrom: this.context.dataset.sdtfrom,
+    guid: this.context.dataset.guid,
+    flowid: this.context.dataset.flowid,
+    charge: a.isNeedPay ? 1 : 0,
+    linkver: 2,
+    lnk: this.context.dataset.getinfoJSON.vl.vi[0].lnk,
+    tm: c ? c : l.getTimeStampStr(),
+    refer: f,
+    ehost: h
+};
+"""
 
+
+vkeyparam = {
+    'otype': 'ojson',
+    'platform': '10201',
+    'appVer': '3.5.57',
+    'sdtfrom': 'v1010',
+    'charge': '0',
+    'linkver': '2',
+    'unid': '',
+    'encryptVer': '9.1',
+
+
+    'format': None, # format id
+    'vid': None,
+    'filename': None,
+    'vt': None,     # ui[n]['vt']
+    'guid': None,
+    'flowid': None, # '_10201',
+    'lnk': None,    # self.program['lnk']
+    'tm': None,
+    'refer': None,  # base_url
+    'ehost': None,  # base_url
+    'logintoken': None, # logintoken
+    'cKey': None,
+}
+
+global_vkey = {
+    'buid': 'onlyvkey',
+    'vkeyparam': vkeyparam,
+}
 
 class Tencent(BasicParser):
     def __init__(self):
@@ -194,10 +245,6 @@ class Tencent(BasicParser):
         seg_path = path.split('/')
         if seg_path[-2] == 'cover':
             url = bs4.find('link', rel='canonical').get('href')
-            # text = self.request(url)
-            # video_info_rex = re.compile('var VIDEO_INFO\s*=\s*({.+?})\s*</script>')
-
-            # video_info = json.loads(video_info_rex.search(text).group(1))
             s1, s2 = splittype(url)
             host, path = splithost(s2)
             seg_path = path.split('/')
@@ -205,19 +252,15 @@ class Tencent(BasicParser):
         vid = seg_path[-1].split('.html')[0]
 
 
-        # scripts = bs4.findAll('script')
         title = video_info['title']
         if self.cookie_str:
             self.auth_refresh()
 
         res_videos = []
         for i in quality:
-            # start = time.time_ns()
             with PyJSCaller.Sesson('./js/tencent.js') as sess:
                 getckey, createGUID, setdocument = sess.require('getckey', 'createGUID', 'setdocument')
-                setdocument(url)
-
-
+                setdocument(url, '')
 
                 tm = int(time.time())
 
@@ -264,9 +307,14 @@ class Tencent(BasicParser):
             res_json = json.loads(text)
             res_json['vinfo'] = json.loads(res_json['vinfo'])
 
-            print(res_json)
             if res_json['vinfo'].get('vl'):
-                res_videos.append(TencentRespond(self, res_json, res_json, BasicVideoInfo(url, title, i)))
+                info = BasicVideoInfo(url, title, i,
+                                      guid=guid.getValue(),
+                                      sdtfrom=req_vinfoparam['sdtfrom'],
+                                      flowid=flowid.getValue(),
+                                      logintoken=new_token,
+                                      )
+                res_videos.append(TencentRespond(self, res_json, res_json, info))
 
 
         return res_videos
@@ -357,7 +405,6 @@ class TencentRespond(BasicRespond):
     def __init__(self, parent, full_json, res_json, extra_info):
         BasicRespond.__init__(self, parent, full_json, res_json, extra_info)
         self.__extract__()
-        pass
 
 
     def __extract__(self):
@@ -366,7 +413,98 @@ class TencentRespond(BasicRespond):
         # target video urls
         m3u8 = self.getM3U8()
         if not m3u8:
-            m3u8 = self.parent.request(url=self.program['ul']['ui'][0]['url'])
+            _step = self.program['ul']['ui'][0]['url'].split('/')
+            url = self.program['ul']['ui'][0]['url']
+            if _step[-1] and 'm3u8' in _step[-1]:
+                self.__extract_m3u8__(url)
+            elif self.program['ul']['ui'][0].get('hls'):
+                url = urljoin(url, self.program['ul']['ui'][0]['hls']['pt'])
+                self.__extract_m3u8__(url)
+            else:
+                self._target_video_urls = []
+                base_name, ext = os.path.splitext(self.program['fn'])
+                format_name = base_name + '.%d' + ext
+                filenames = [format_name % (i + 1) for i in range(len(self.program['cl']['ci']))]
+                vkeys, _ = self.get_all_vkey(filenames, self.program['ul']['ui'][0]['vt'])
+                for i, j in enumerate(vkeys):
+                    url = urljoin(url, filenames[i])
+                    query = {
+                        'vkey': j,
+                        'sdtfrom': self.extra_info.sdtfrom,
+                        'guid': self.extra_info.guid,
+                    }
+                    url = make_query(url, query)
+                    self._target_video_urls.append(url)
+
+
+    def get_all_vkey(self, filenames, vt):
+        guid = self.extra_info.guid
+        flowid = self.extra_info.flowid
+        vid = self.program['vid']
+        base_url = self.extra_info.base_url
+        tm = time.time()
+        tm_s = []
+        ckeys = []
+        with PyJSCaller.Sesson('./js/tencent.js') as sess:
+            getckey, setdocument = sess.require('getckey', 'setdocument')
+            setdocument(base_url, '')
+
+            for i in range(len(filenames)):
+                cur_tm = int(tm+random.random() + random.randint(1, 2))
+                tm = cur_tm
+                tm_s.append(cur_tm)
+
+                ckey = getckey('10201', '3.5.57', vid, '', guid, cur_tm)
+                ckeys.append(ckey)
+
+            ckeys_expr = sess.call(ckeys)
+
+        vkeys = []
+        res_json_list = []
+        for i, j in enumerate(ckeys_expr.getValue()):
+            update_param = {
+                'format': self.get_sel_format_id(),
+                'vid': self.program['vid'],
+                'filename': filenames[i],
+                'vt': vt,  # ui[n]['vt']
+                'guid': guid,
+                'flowid': flowid,
+                'lnk': self.program['lnk'],  # self.program['lnk']
+                'tm': tm_s[i],
+                'refer': base_url,
+                'ehost': base_url,
+                'logintoken': self.extra_info.logintoken,  # logintoken
+                'cKey': j,
+            }
+
+
+            req_param = global_vkey.copy()
+            new_vkey_param = vkeyparam.copy()
+            new_vkey_param.update(update_param)
+
+            req_param['vkeyparam'] = urlencode(new_vkey_param)
+
+            req_data = str(req_param).replace("'", '"').encode('utf-8')
+            text = self.parent.request(method='POST', url='https://vd.l.qq.com/proxyhttp', data=req_data)
+
+            res_json = json.loads(text)
+            if res_json['errCode'] == 0:
+                res_json['vkey'] = json.loads(res_json['vkey'])
+            vkeys.append(res_json['vkey']['key'])
+            res_json_list.append(res_json)
+
+        return vkeys, res_json_list
+
+
+    def get_sel_format_id(self):
+        for i in self.res_json['vinfo']['fl']['fi']:
+            if i['sl'] == 1:
+                return i['id']
+
+        raise KeyError('selected format id no found')
+
+    def __extract_m3u8__(self, m3u8_url):
+        m3u8 = self.parent.request(url=m3u8_url)
 
         m3u8_parts = re.compile('#EXTINF:([\d\.]+),\s+(.+?)\s+').findall(m3u8)
 
@@ -376,8 +514,6 @@ class TencentRespond(BasicRespond):
         for i in m3u8_parts:
             tmp_urls.append([j + i[1] for j in m3u8_paths])
         self._target_video_urls = [BasicUrlGroup(tmp_urls)]
-
-        # if
 
 
     def getM3U8(self):
@@ -451,11 +587,12 @@ if __name__ == '__main__':
     # tx = Tencent()
     load_cookie()
     user = TencentUser()
+    url = 'https://v.qq.com/x/cover/wvmn6sg298qr2w0/q0128rs8tpj.html'
 
     user.extract(TENCENT.cookie_str)
 
-    res = parse(url, [6])
-    print(res[0].getM3U8Url())
+    res = parse(url, [5])
+    print(res[0].getM3U8Urls())
 
 
 

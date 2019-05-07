@@ -10,15 +10,17 @@ EVT_DLLOG_APPEND = wx.NewId()
 class DialogDLLog(wx.Dialog):
 
     def __init__(self, parent):
-        wx.Dialog.__init__(self, parent, id=wx.ID_ANY, title=u"下载器日志", pos=wx.DefaultPosition, size=wx.Size(500, 500),
+        wx.Dialog.__init__(self, parent, id=wx.ID_ANY, title=u"控制台日志", pos=wx.DefaultPosition, size=wx.Size(500, 500),
                            style=wx.DEFAULT_DIALOG_STYLE)
 
         self.SetSizeHints(wx.DefaultSize, wx.DefaultSize)
 
         sizer_global = wx.BoxSizer(wx.VERTICAL)
+        self.textctrl_log = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size(427, 381),
+                                           wx.TE_AUTO_URL | wx.TE_MULTILINE | wx.TE_PROCESS_ENTER | wx.TE_PROCESS_TAB)
 
-        self.listctrl_log = ListCtrl_DLLog(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LC_REPORT)
-        sizer_global.Add(self.listctrl_log, 1, wx.ALL | wx.EXPAND, 5)
+        # self.listctrl_log = ListCtrl_DLLog(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LC_REPORT)
+        sizer_global.Add(self.textctrl_log, 1, wx.ALL | wx.EXPAND, 5)
 
         self.SetSizer(sizer_global)
         self.Layout()
@@ -41,10 +43,10 @@ class DialogDLLog(wx.Dialog):
             time.sleep(0.1)
             line_text = stdout.readline()
             while line_text:
-                self.listctrl_log.Append((line_text,))
+                self.textctrl_log.AppendText(line_text)
 
     def append_log(self, event):
-        self.listctrl_log.Append(event.data)
+        self.textctrl_log.AppendText(event.data)
 
 
 

@@ -9,11 +9,15 @@ from urllib.parse import unquote
 import PyJSCaller
 from core.common import BasicParser, BasicRespond, BasicVideoInfo, \
     make_query, BasicUserCookie, BasicUrlGroup, BasicAudioInfo, raw_decompress, extract_query
-
-from urllib.parse import splithost, splittype
+import urllib.parse
+import urllib.request
+import urllib.error
+import urllib.response
+from urllib.parse import splithost, splittype, urljoin, urlencode
 import os
 import CommonVar as cv
 import traceback
+import random
 
 
 PARSER = {}
@@ -60,6 +64,8 @@ def parse(url, *args):
 
     sel_parser.init()
     LASTRES = sel_parser.parse(url, *args)
+    for i in LASTRES:
+        print(i.full_json)
     return LASTRES
 
 
@@ -70,6 +76,7 @@ def matchParse(url, quality, features):
 
     sel_parser.init()
     return sel_parser.matchParse(*LASTREQ)
+
 
 def init():
     error_msg = []

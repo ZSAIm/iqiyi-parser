@@ -37,7 +37,7 @@ class FrameDownloader:
 
             @staticmethod
             def logs(event):
-                gui.dialog_dllog.ShowModal()
+                gui.dialog_dllog.Show()
 
             @staticmethod
             def settings(event):
@@ -105,13 +105,17 @@ class FrameParser:
         class File:
             @staticmethod
             def bindEvent():
-                items = ('settings',)
+                items = ('logs', 'settings')
                 FrameParser.MemuBar.batchBind(FrameParser.MemuBar.File, gui.frame_parse.menu_bar.file, items)
 
             @staticmethod
             def settings(event):
                 dlg = gui.DialogSettings(gui.frame_parse)
                 dlg.ShowModal()
+
+            @staticmethod
+            def logs(event):
+                gui.dialog_dllog.Show()
 
         class Help:
             @staticmethod
@@ -171,13 +175,17 @@ class FrameMerger:
         class File:
             @staticmethod
             def bineEvent():
-                items = ('exit',)
+                items = ('logs', 'exit')
                 FrameMerger.MenuBar.batchBind(FrameMerger.MenuBar.File, gui.frame_merger.menu_bar.file, items)
 
             @staticmethod
             def settings(event):
                 dlg = gui.DialogSettings(gui.frame_merger)
                 dlg.ShowModal()
+
+            @staticmethod
+            def logs(event):
+                gui.dialog_dllog.Show()
 
             @staticmethod
             def exit(event):

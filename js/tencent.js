@@ -347,23 +347,26 @@ var wasmobject = new WebAssembly.Instance(new WebAssembly.Module(buffer), import
 
 
 
-function document_init(URL, referrer, userAgent, appCodeName, appName, platform){
+// function setnavigator(URL, referrer, userAgent, appCodeName, appName, platform){
+//     navigator = {
+//         userAgent: "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36",
+//         appCodeName: "Mozilla",
+//         appName: "Netscape",
+//         platform: "Win32"
+//     };
+//     window.navigator = navigator;
+//
+// }
+
+
+function setdocument(URL, referrer){
     document.URL = URL;
     document.referrer = referrer;
-    navigator = {
-        userAgent: "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36",
-        appCodeName: "Mozilla",
-        appName: "Netscape",
-        platform: "Win32"
-    };
-    window.navigator = navigator;
-
 }
 
-
 // encryptVer = "9.1"
-function getckey(platform, appVer, vid, empty_str, guid, tm){
-    var _args = [platform, appVer, vid, empty_str, guid, tm];
+function getckey(platform, appVer, vid, empty_str="", guid, tm){
+    var _args = [platform, appVer, vid, empty_str="", guid, tm];
     var c = ['number', 'string', 'string', 'string', 'string', 'number'];
     return i('getckey', 'string', c, _args, undefined)
 
@@ -384,11 +387,22 @@ function createGUID(a) {
 
 
 
+//
+//
+//
+// setdocument('aaa');
+// console.log()
 
 /////////////////////////
 
 
+
+
 // console.log(getckey('10201', '3.5.57', 'j002024w2wg', '', '1fcb9528b79f2065c9a281a7d554edd1', '1556617308'));
+
+// console.log(getckey('10201', '3.5.57', 'j002024w2wg', '', '1fcb9528b79f2065c9a281a7d554edd1', '1556590422'));
+// console.log(getckey('10201', '3.5.57', 'j002024w2wg', '', '1fcb9528b79f2065c9a281a7d554edd1', '1556590422'));
+// console.log(getckey('10201', '3.5.57', 'j002024w2wg', '', '1fcb9528b79f2065c9a281a7d554edd1', '1556590422'));
 // console.log(getckey('10201', '3.5.57', 'j002024w2wg', '', '1fcb9528b79f2065c9a281a7d554edd1', '1556590422'));
 
 

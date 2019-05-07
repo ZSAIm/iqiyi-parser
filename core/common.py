@@ -314,11 +314,10 @@ class BasicVideoInfo:
         self.extra_info = extra_info
 
     def __getattr__(self, item):
-        if not hasattr(self, item):
+        if item not in dir(self):
             return self.extra_info[item]
         else:
             return object.__getattribute__(self, item)
-
 
 
 class BasicAudioInfo:

@@ -25,7 +25,7 @@ def init():
     frame_parse = FrameParser(None)
     frame_merger = FrameMerger(None)
     dialog_copylink = DialogCopyLink(frame_parse)
-    dialog_dllog = DialogDLLog(frame_downloader)
+    dialog_dllog = DialogDLLog(None)
 
 def MainLoop():
     global app

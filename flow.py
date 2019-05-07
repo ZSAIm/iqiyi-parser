@@ -61,7 +61,7 @@ HEADERS = {
     'Connection': 'keep-alive',
     'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3',
-    'Accept-Encoding': 'gzip, deflate, br',
+    'Accept-Encoding': 'gzip',
     'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
 }
 
@@ -597,7 +597,7 @@ class FrameDownload:
                 gui.frame_downloader.insertBlock(i + cv.SEL_RES.getVideoTotal())
 
             gui.setTimerHandler(downloader.getProcessEvent())
-            gui.runTimer(300, False)
+            gui.runTimer(500, False)
             gui.frame_downloader.Show(True)
 
         @staticmethod
@@ -648,7 +648,7 @@ class Merge:
         audio_dst = downloader.getDstAudioFilePath()
 
         if video_src:
-            if len(video_src) == 1:
+            if len(video_src) == 1 and cv.TARGET_FORMAT == '':
                 shutil.move(video_src[0], video_dst)
             else:
                 # mer = merger.make(video_dst, video_src, method=merger.MET_CONCAT, merger=cv.SEL_RES.getConcatMerger())
@@ -657,7 +657,7 @@ class Merge:
                 mer.join()
 
         if audio_src:
-            if len(audio_src) == 1:
+            if len(audio_src) == 1 and cv.TARGET_FORMAT == '':
                 shutil.move(audio_src[0], audio_dst)
             else:
                 # mer = merger.make(audio_dst, audio_src, method=merger.MET_CONCAT, merger=cv.SEL_RES.getConcatMerger())
@@ -722,13 +722,19 @@ class ConfigSettings:
 class ShutDown:
     @staticmethod
     def handle():
+        gui.dialog_dllog.Show()
+        threading.Thread(target=ShutDown._do).start()
+
+    @staticmethod
+    def _do():
         thr = threading.Thread(target=ShutDown._shutdown)
         thr.start()
         thr.join()
-        ShutDown.destroy_frame()
+        wx.CallAfter(ShutDown.destroy_frame)
 
     @staticmethod
     def destroy_frame():
+        gui.dialog_dllog.Destroy()
         gui.frame_parse.Destroy()
         gui.frame_downloader.Destroy()
         gui.frame_merger.Destroy()
@@ -736,6 +742,7 @@ class ShutDown:
 
     @staticmethod
     def _shutdown():
+
         cv.SHUTDOWN = True
         merger.shutdown()
         downloader.shutdown()

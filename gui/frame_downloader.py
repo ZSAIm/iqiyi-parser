@@ -205,7 +205,7 @@ class Menu_File(wx.Menu):
         self.initMenuItems()
 
     def initMenuItems(self):
-        self.logs = wx.MenuItem(self, wx.ID_ANY, 'Logs', wx.EmptyString, wx.ITEM_NORMAL)
+        self.logs = wx.MenuItem(self, wx.ID_ANY, '&Logs\tF2', wx.EmptyString, wx.ITEM_NORMAL)
         # self.parse.Enable(False)
         self.settings = wx.MenuItem(self, wx.ID_ANY, 'Settings', wx.EmptyString, wx.ITEM_NORMAL)
         # self.settings.Enable(False)
