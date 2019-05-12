@@ -22,7 +22,7 @@ class DialogAbout(wx.Dialog):
         # **************************************  title
 
         sizer_title = wx.BoxSizer(wx.HORIZONTAL)
-        text_title = wx.StaticText(global_panel, wx.ID_ANY, u"视频解析下载器", wx.DefaultPosition,
+        text_title = wx.StaticText(global_panel, wx.ID_ANY, u"视频解析下载器v1.7", wx.DefaultPosition,
                                             wx.DefaultSize, wx.ALIGN_CENTER_HORIZONTAL)
         text_title.Wrap(-1)
         text_title.SetFont(

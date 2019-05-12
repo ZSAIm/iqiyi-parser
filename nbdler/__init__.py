@@ -10,6 +10,7 @@
 from .DLManager import Manager
 from .DLProgress import GlobalProgress
 from .DLHandler import AUTO, MANUAL, Handler
+from .DLError import DLUrlError
 import zlib
 import io
 from wsgiref.headers import Headers

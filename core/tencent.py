@@ -16,12 +16,14 @@ LASTRES = None
 
 HEADERS = {
     'Connection': 'keep-alive',
-    'Host': 'vd.l.qq.com',
-    'Origin': 'https://v.qq.com',
+    # 'Host': 'vd.l.qq.com',
+
+    # 'Origin': 'https://v.qq.com',
     'Accept': 'application/json, text/javascript, */*; q=0.01',
     'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36',
     'Accept-Encoding': 'gzip, deflate, br',
     'Accept-Language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
+    'Referer': 'https://v.qq.com/x/cover/zkbp0mrqhy0x1hl/k0027wwijz7.html'
 
 }
 
@@ -80,7 +82,9 @@ logintoken_auth_refresh = {
     'type': None,                   # main_login
     # 'callback': 'jQuery19103462876083328801_',
     '_': None,        # str(int(time.time() * 1000))
-
+    'g_tk': '',
+    'g_vstk': None,
+    'g_actk': None,
 }
 
 
@@ -221,6 +225,7 @@ class Tencent(BasicParser):
     def __init__(self):
         BasicParser.__init__(self)
         self.setHeaders(HEADERS)
+
         self.user = TencentUser()
 
     def loadCookie(self, cookie_str):
@@ -324,7 +329,8 @@ class Tencent(BasicParser):
         add_params = logintoken_auth_refresh.copy()
         add_params['_'] = str(int(time.time() * 1000))
         add_params['type'] = self.user.main_login
-
+        add_params['g_vstk'] = self.time33(self.user.vusession)
+        add_params['g_actk'] = self.time33(self.user.access_token)
         new_url = make_query(AUTH_REFRESH_URL, add_params)
 
         res = self.requestRaw(url=new_url)
@@ -342,6 +348,20 @@ class Tencent(BasicParser):
         self.saveCookie(new_cookie_str)
         self.loadCookie(new_cookie_str)
         return True
+
+    def time33(self, t):
+        """
+        time33: function(t) {
+            for (var e = 0, n = t.length, i = 5381; e < n; ++e)
+                i += (i << 5) + t.charAt(e).charCodeAt();
+            return 2147483647 & i
+        }
+        """
+        i = 5381
+        # t = self.user.vusession
+        for e in range(len(t)):
+            i += (i << 5) + ord(t[e])
+        return 2147483647 & i
 
 
 
@@ -416,10 +436,10 @@ class TencentRespond(BasicRespond):
             _step = self.program['ul']['ui'][0]['url'].split('/')
             url = self.program['ul']['ui'][0]['url']
             if _step[-1] and 'm3u8' in _step[-1]:
-                self.__extract_m3u8__(url)
+                self.extract_m3u8_url(url)
             elif self.program['ul']['ui'][0].get('hls'):
                 url = urljoin(url, self.program['ul']['ui'][0]['hls']['pt'])
-                self.__extract_m3u8__(url)
+                self.extract_m3u8_url(url)
             else:
                 self._target_video_urls = []
                 base_name, ext = os.path.splitext(self.program['fn'])
@@ -435,6 +455,8 @@ class TencentRespond(BasicRespond):
                     }
                     url = make_query(url, query)
                     self._target_video_urls.append(url)
+        else:
+            self.extract_m3u8(m3u8)
 
 
     def get_all_vkey(self, filenames, vt):
@@ -477,7 +499,6 @@ class TencentRespond(BasicRespond):
                 'cKey': j,
             }
 
-
             req_param = global_vkey.copy()
             new_vkey_param = vkeyparam.copy()
             new_vkey_param.update(update_param)
@@ -503,18 +524,22 @@ class TencentRespond(BasicRespond):
 
         raise KeyError('selected format id no found')
 
-    def __extract_m3u8__(self, m3u8_url):
-        m3u8 = self.parent.request(url=m3u8_url)
 
-        m3u8_parts = re.compile('#EXTINF:([\d\.]+),\s+(.+?)\s+').findall(m3u8)
+    def extract_m3u8_url(self, m3u8_url):
+        m3u8 = self.parent.request(url=m3u8_url)
+        self.extract_m3u8(m3u8)
+
+
+    def extract_m3u8(self, m3u8_str):
+        m3u8_parts = re.compile('#EXTINF:([\d\.]+),\s+(.+?)\s+').findall(m3u8_str)
 
         m3u8_paths = [i[:i.rindex('/') + 1] for i in self.getM3U8Urls()]
 
         tmp_urls = []
         for i in m3u8_parts:
             tmp_urls.append([j + i[1] for j in m3u8_paths])
-        self._target_video_urls = [BasicUrlGroup(tmp_urls)]
 
+        self._target_video_urls = [BasicUrlGroup(tmp_urls)]
 
     def getM3U8(self):
         return self.program['ul'].get('m3u8')

@@ -48,6 +48,7 @@ from urllib.request import urlopen, Request
 from urllib.parse import urljoin
 from core.common import raw_decompress
 import gzip, json
+import io, sys, time
 
 TOOL_REQ_URL = {
     'ffmpeg': 'https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-3.2-win64-static.zip',
@@ -82,12 +83,17 @@ class Entry:
 class LoadParserCore:
     @staticmethod
     def handle():
-        err_msg = parser.init()
-        if err_msg:
-            dlg = wx.MessageDialog(gui.frame_parse, '\n'.join(err_msg), u'核心加载错误信息', wx.OK | wx.ICON_ERROR)
+        try:
+            err_msg = parser.init()
+            if err_msg:
+                dlg = wx.MessageDialog(gui.frame_parse, '\n'.join(err_msg), u'核心加载错误信息', wx.OK | wx.ICON_ERROR)
+                dlg.ShowModal()
+                dlg.Destroy()
+        except:
+            err_msg = traceback.format_exc()
+            dlg = wx.MessageDialog(gui.frame_parse, err_msg, u'错误', wx.OK | wx.ICON_ERROR)
             dlg.ShowModal()
-
-
+            dlg.Destroy()
 
 class GetTool:
     @staticmethod
@@ -215,6 +221,9 @@ class UndoneJob:
     def _do():
         def __(sel_res):
             if not sel_res:
+                dlg = wx.MessageDialog(None, u'没有解析到匹配的资源。', '错误', wx.OK | wx.ICON_ERROR)
+                dlg.ShowModal()
+                dlg.Destroy()
                 ShutDown.handle()
                 return
             if FrameParser.MenuGoDownload.handler_audio(sel_res):
@@ -602,6 +611,7 @@ class FrameDownload:
 
         @staticmethod
         def _download_insp():
+            time.sleep(0.1)
             downloader.join()
 
             if cv.SHUTDOWN:
@@ -666,7 +676,7 @@ class Merge:
                 mer.join()
 
         if video_src and audio_src:
-            src = [video_dst, audio_dst]
+            src = [video_dst + cv.TARGET_FORMAT, audio_dst+ cv.TARGET_FORMAT]
             dst = downloader.getDstFilePath()
             mer = merger.make(dst, src, cv.MER_VIDEO_AUDIO)
 
@@ -730,6 +740,10 @@ class ShutDown:
         thr = threading.Thread(target=ShutDown._shutdown)
         thr.start()
         thr.join()
+        with io.open('console.log', 'w') as f:
+            f.write(sys.stdout._buff)
+            f.write('\n')
+            f.write(sys.stderr._buff)
         wx.CallAfter(ShutDown.destroy_frame)
 
     @staticmethod

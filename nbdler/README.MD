@@ -17,9 +17,15 @@
 * 自动分片控制管理。
 
 ## 更新说明
+* **2019/05/12**
+	* 将客户端无法处理的4xx状态码通过trap交由用户去处理，以实现更灵活的处理方法。
+	* 将socket处理交由http.client处理。
+	* 修复首次链接无限循环4xx错误问题。
+	* 修复暂停后无法继续下载问题。
+
 * **2019/05/07**
 	* 修复小文件无法释放写出缓存问题。
-	
+
 * **2019/05/03**
 	* 修复分片切割器失控问题。
 	* 支持Manager进行嵌套成多级组下载。
@@ -31,7 +37,7 @@
 	* 添加方法：线程阻塞join，安全关闭线程shutdown。
 	* 支持多线程字段自定义，可通过参数range_format控制，以适应多种多线程方式。(默认:　Range: bytes=%d-%d)
 	* 提高线程池稳定性。
-	* 修复ssl握手错误： sslv3 alert handshake failure (_ssl.c:646)
+	* 修复ssl握手错误： sslv3 alert handshake failure (_ssl.c:646_)
 	* 修复模块的导出错误问题。
 	* 优化若干bug。
 * **2019/04/12**
@@ -41,7 +47,7 @@
 * **2019/02/25**
     * 修复内存泄露问题，优化下载缓冲方式。
     * 优化部分代码结构，提高代码可读性。
-* **2019/02/17** 
+* **2019/02/17**
     * 兼容python 2/3。
     * 优化部分代码。
     * 修复若干bug。
@@ -196,7 +202,7 @@ dl.getUrls()
 ```
 
 ### 任务操作
-```python 
+```python
 # 省略任务建立的代码
 
 # 开始下载任务
@@ -253,7 +259,7 @@ dl.manualRun()	# 当使用该方法运行的时候将自动进入片段下载模
 ...
 
 # 获取下载片段数据可以使用
-dl.getSegsValue()	# 返回以范围为索引的数据数据流组成的字典，如{'0-512': ..., '1024-4096': ...} 
+dl.getSegsValue()	# 返回以范围为索引的数据数据流组成的字典，如{'0-512': ..., '1024-4096': ...}
 
 # 获取下载片段当前数据大小
 dl.getSegsSize()	# 返回已下载并且完成缓冲的片段数据大小
@@ -285,7 +291,7 @@ dlB = nbdler.open(urls=[url_C], filename='C')
 dlm = nbdler.Manager()
 
 # 将Handler添加进入任务管理器的队列，返回为该任务生成对应的唯一id
-# dlm.addHander(Handler= , [name=]), name为可选命名 
+# dlm.addHander(Handler= , [name=]), name为可选命名
 dlm.addHandler(dlA)
 dlm.addHandler(dlB)
 dlm.addHandler(dlC)
@@ -324,7 +330,7 @@ dlm.getIdFromName(id)
 dlm.getNameFromId(name)
 
 # 通过id或者name来取得对应的Handler。
-# getHandler([id=], [name=]) 
+# getHandler([id=], [name=])
 dlm.getHandler()
 
 # 获取瞬时速度，指定id将返回对应的Handler的瞬时速度，否则将返回Run队列的瞬时速度总和。
@@ -345,9 +351,3 @@ dlm.isEnd()
 
 # LICENSE
 Apache 2.0
-
-
-
-
-
-
