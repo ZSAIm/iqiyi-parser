@@ -6,14 +6,15 @@ from .packer import Packer
 import threading
 import socket
 import sys
-
+from .DLError import DLUrlError
 import traceback
 
 if sys.version_info >= (3, 0):
+    from http.client import HTTPResponse
     from http.cookiejar import CookieJar
     from urllib.parse import splittype, splithost, splittype, splitport
     from urllib.request import build_opener, Request, HTTPCookieProcessor
-    from urllib.error import URLError
+    from urllib.error import URLError, HTTPError
     from ssl import SSLError
 
 elif sys.version_info <= (2, 7):
@@ -95,25 +96,34 @@ class UrlPool(Packer, object):
         retry_counter = self.max_retry
         while True:
             if self.max_retry == -1 or retry_counter > 0:
-                try:
-                    urlobj.activate()
-                except Exception as e:
-                    # traceback.print_exc()
-                    if self.parent.shutdown_flag:
-                        break
-                    if retry_counter != -1:
-                        retry_counter -= 1
-                        continue
-                    if self.parent.file.size != -1:
-                        break
-                    if not self.parent.file.name:
-                        self.parent.file.name = self.getFileName()
-                else:
-                    self.id_map[id] = True
-                    self.parent.file.updateFromUrl(urlobj)
+                # try:
+                res = urlobj.activate()
+                if isinstance(res, HTTPResponse):
                     break
+                if isinstance(res, HTTPError):
+                    if res.code >= 400 and res.code < 500:
+                        _except = DLUrlError(threading.current_thread(), self.parent, res)
+                        self.parent.globalprog.raiseUrlError(_except)
+                        return
+
+                if self.parent.is_shutdown():
+                    break
+                if retry_counter != -1:
+                    retry_counter -= 1
+                    continue
+                time.sleep(0.1)
+
             else:
-                raise Exception('MaxRetryExceed', 'UrlNotRespond')
+                _except = DLUrlError(threading.current_thread(), self.parent, Exception('MaxRetryExceed', 'UrlNotRespond'))
+                self.parent.globalprog.raiseUrlError(_except)
+                return
+
+
+        self.id_map[id] = True
+        self.parent.file.updateFromUrl(urlobj)
+        if not self.parent.file.name:
+            self.parent.file.name = self.getFileName()
+        # break
 
 
     def getNextId(self, cur_id):
@@ -314,6 +324,11 @@ class Url(Packer, object):
     def activate(self):
         res, cookie_dict = self.__request__()
         # if res.getcode() == 200 or res.getcode() == 206:
+        if not res:
+            return None
+        if not isinstance(res, HTTPResponse):
+            return res
+
         headers_items = ()
         if sys.version_info < (3, 0):
             headers_items = res.info().items()
@@ -321,6 +336,7 @@ class Url(Packer, object):
         if sys.version_info >= (3, 0):
             headers_items = res.getheaders()
         self.target.update(res.geturl(), headers_items, res.getcode())
+        return res
         # else:
         #     raise Exception('UrlNoRespond or UrlError')
 
@@ -333,17 +349,21 @@ class Url(Packer, object):
         if self.cookie:
             _header.update({'Cookie': self.cookie})
         req = Request(self.url, headers=_header, origin_req_host=self.host)
-        error_counter = 0
-        while error_counter < 3:
-            try:
-                res = opener.open(req)
-                break
-            except Exception as e:
-                # traceback.print_exc()
-                error_counter += 1
-            time.sleep(0.5)
-        else:
-            raise Exception('UrlNotRespond')
+
+        res = None
+
+        try:
+            res = opener.open(req)
+            # break
+        except HTTPError as e:
+            # if e.code >= 400 and e.code < 500:
+            return e, None
+
+        except (socket.timeout, URLError) as e:
+            return e, None
+        except Exception as e:
+            traceback.print_exc()
+            return e, None
 
         return res, Cookiejar._cookies
 
@@ -384,20 +404,19 @@ class File(Packer, object):
         thrs = self.parent.thrpool.getThreadsFromName('Nbdler-AddNode')
         if len(thrs) == 1 and self.size == -1:
             thrs[0].join()
-            if self.parent.shutdown_flag:
+            if self.parent.is_shutdown():
                 return False
+
         else:
             while len(self.parent.thrpool.getThreadsFromName('Nbdler-AddNode')):
                 if self.size != -1:
                     break
-                time.sleep(0.01)
-            else:
-                if self.size == -1:
+                if self.parent.is_shutdown():
                     return False
+                time.sleep(0.01)
 
         if self.size == -1:
             return False
-            # raise Exception('UrlTimeout.')
 
         if withdir:
             try:

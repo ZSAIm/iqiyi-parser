@@ -23,7 +23,7 @@ __URL_NODE_PARAMS__ = {
     'headers': 'headers',
     'max_threads': 'max_thread',
     'range_formats': 'range_format',
-    'pull_flags': 'pull_flag'
+    # 'pull_flags': 'pull_flag'
 }
 
 class Handler(Packer, object):
@@ -32,7 +32,7 @@ class Handler(Packer, object):
         self.url = UrlPool(self)
         self.file = File(self)
 
-        self.thrpool = ThreadPool()
+        self.thrpool = ThreadPool(self)
 
         self.__globalprog__ = GlobalProgress(self, AUTO)
 
@@ -40,10 +40,12 @@ class Handler(Packer, object):
 
         self.globalprog = self.__globalprog__
 
-        self.shutdown_flag = False
+        # self.shutdown_flag = False
 
         self._wait_for_run = False
         self._batchnode_bak = None
+
+        self._daemon = False
 
     def uninstall(self):
         self.globalprog = self.__globalprog__
@@ -54,6 +56,7 @@ class Handler(Packer, object):
     def __batchAdd__(self, pack_yield):
         for iter_kw in pack_yield:
             self.addNode(**iter_kw)
+
 
     def batchAdd(self, **kwargs):
         global __URL_NODE_PARAMS__
@@ -103,10 +106,20 @@ class Handler(Packer, object):
 
         self.globalprog.run()
 
+    def trap(self):
+        self.globalprog.trap()
+
 
     def join(self):
-        while not self.thrpool.isAllDead():
-            time.sleep(0.01)
+        self.globalprog.join()
+
+    def isAllDead(self):
+        return self.thrpool.isAllDead()
+
+
+    def isCritical(self):
+        return self.globalprog.isCritical()
+
 
     def __config_params__(self):
         return {'filename': 'file.name',
@@ -115,11 +128,11 @@ class Handler(Packer, object):
                 'max_conn': 'url.max_conn',
                 'buffer_size': 'file.buffer_size',
                 'max_speed': 'url.max_speed',
-                'wait_for_run': '_wait_for_run'
+                'wait_for_run': '_wait_for_run',
+                'daemon': '_daemon',
+                'max_retry': 'url.max_retry'
         }
 
-    # def setRangeFormat(self, range_format='Range: bytes=%d-%d'):
-    #     self.globalprog.setRangeFormat(range_format)
 
     def config(self, **kwargs):
 
@@ -137,6 +150,8 @@ class Handler(Packer, object):
     def close(self):
         if not self.globalprog.isEnd():
             raise Exception('DownloadNotComplete')
+        for i in self.thrpool.getThreadsFromName(name='Nbdler-ReleaseBuffer'):
+            i.join()
         if os.path.isfile(os.path.join(self.file.path, self.file.name + '.nbdler')):
             os.remove(os.path.join(self.file.path, self.file.name + '.nbdler'))
 
@@ -169,6 +184,9 @@ class Handler(Packer, object):
         self.uninstall()
         return damage
 
+
+    def is_shutdown(self):
+        return self.globalprog.shutdown_flag
 
     def fix(self, segs):
         self.fix(segs)
@@ -228,9 +246,6 @@ class Handler(Packer, object):
         if self.file.size == -1 and self._batchnode_bak and self._wait_for_run:
             self.batchAdd(**self._batchnode_bak)
         if self.__new_project__:
-            if self.file.size == 0:
-                self.globalprog.close()
-                return
             if not self.file.makeFile():
                 return
             if self.file.size == -1:
@@ -238,8 +253,9 @@ class Handler(Packer, object):
 
             self.globalprog.allotter.makeBaseConn()
             self.globalprog.save()
-
+        self.__new_project__ = False
         self.globalprog.run()
+
 
     def run(self):
         self.thrpool.Thread(target=self.__run__, name='Nbdler-Launch').start()
@@ -256,9 +272,9 @@ class Handler(Packer, object):
 
     def shutdown(self):
         # if not self.isEnd():
-        self.shutdown_flag = True
+        self.globalprog.shutdown_flag = True
         self.globalprog.shutdown()
-        self.shutdown_flag = False
+        self.globalprog.shutdown_flag = False
 
 
     def __packet_params__(self):
@@ -305,3 +321,6 @@ class Handler(Packer, object):
 
     def getUrlsThread(self):
         return self.globalprog.allotter.getUrlsThread()
+
+    def __str__(self):
+        return '[%s] - %s' % (self.file.size, self.file.name)

@@ -103,6 +103,8 @@ class Progress(Packer, object):
         self.urlid = Urlid
 
 
+
+
     def __setattr__(self, key, value):
         object.__setattr__(self, key, value)
 
@@ -199,6 +201,12 @@ class Progress(Packer, object):
 
         self.go_inc = self.done_inc
 
+    def __str__(self):
+        return 'EndFlag=%s, PauseFlag=%s, Length=%s, Go_inc=%s, Range=(%s-%s)' % (
+            self.status.endflag, self.status.pauseflag, self.length, self.go_inc, self.begin, self.end)
+
+
+
 class Piece(object):
     def __init__(self):
         self.last_left = None
@@ -225,7 +233,7 @@ import threading, math, zlib
 from . import DLInspector, DLAllotter
 
 from .DLInfos import FileStorage
-
+# import gc
 
 
 class GlobalProgress(Packer, object):
@@ -245,19 +253,26 @@ class GlobalProgress(Packer, object):
         self.allotter = DLAllotter.Allotter(Handler, self)
         self.inspector = DLInspector.Inspector(Handler, self, self.allotter)
 
-        # self.range_format = 'Range: bytes=%d-%d'
-
         self.__packet_frame__ = {}
 
         self.__buff_counter__ = 0
         self.__buff_lock__ = threading.Lock()
+
+        self._release_signal = threading.Event()
+
+
         self.__progresses_lock__ = threading.Lock()
-        # self.__release_thread__ = None
+        self.__release_thread__ = None
         self.__insspeed_lock__ = threading.Lock()
 
         self.pause_req = False
 
         self.__mode__ = mode
+
+        self._urlerror = None
+
+        self.shutdown_flag = False
+
 
     def _Thread(self, *args, **kwargs):
         return self.handler.thrpool.Thread(*args, **kwargs)
@@ -282,8 +297,10 @@ class GlobalProgress(Packer, object):
     def run(self):
         if not self.block_map:
             self.makeMap()
-        # print('run:', self.progresses.keys(), self.handler.file.name)
+
         for i, j in self.progresses.items():
+            j.processor.critical = False
+            j.processor.shutdwon_flag = False
             j.run()
 
         self.piece.start()
@@ -293,28 +310,30 @@ class GlobalProgress(Packer, object):
         # if self.handler.url.max_speed != -1:
         #     self.inspector.runLimiter()
         self.inspector.runSelfCheck()
+        self.launch_release()
 
-    # def setRangeFormat(self, range_format='Range: bytes=%d-%d'):
-    #
-    #     self.range_format = range_format
+    def launch_release(self):
+        self.__release_thread__ = self._Thread(target=self.releaseBuffer, name='Nbdler-ReleaseBuffer')
+        self.__release_thread__.start()
 
-    def checkAllGoEnd(self):
+    def check_all_go_end(self):
+        with self.__buff_lock__:
+            if not self.isEnd():
+                for i in list(self.progresses.values()):
+                    if not i.status.go_end:
+                        break
+                else:
+                    if self.__mode__ == AUTO:
+                        miss = self.checkCompleteness()
+                        if miss:
+                            for i in miss:
+                                # print('check all go end', self.handler.file.name, self.handler.file.size)
+                                self.insert(self.allotter.assignUrlid(), *i)
+                                self.run()
 
-        for i in list(self.progresses.values()):
-            if not i.status.go_end:
-                break
-        else:
-            if self.__mode__ == AUTO:
-                miss = self.checkCompleteness()
-                if miss:
-                    for i in miss:
-                        # print('check all go end', self.handler.file.name, self.handler.file.size)
-                        self.insert(self.allotter.assignUrlid(), *i)
-                        self.run()
-
-                    return
-            self.status.endGo()
-            self.close()
+                            return
+                    self.status.endGo()
+                    self.close()
 
     def makePause(self):
         for i, j in self.progresses.items():
@@ -323,20 +342,34 @@ class GlobalProgress(Packer, object):
                     if j.processor.isRunning():
                         j.processor.pause()
 
-    def isAllPause(self):
-        self.makePause()
-        for i in self.progresses.values():
-            if not i.isPause() and not i.isGoEnd() and i.processor.isRunning():
-                break
-        else:
-            if not self.allotter.__allotter_lock__.locked():
-                return True
+    def trap(self):
+        while not self.handler.thrpool.isAllDead():
+            if self._urlerror:
+                err = self._urlerror
+                self._urlerror = None
+                raise err
 
-        return False
+            time.sleep(0.01)
+
 
     def join(self):
         while not self.handler.thrpool.isAllDead():
             time.sleep(0.01)
+
+    def raiseUrlError(self, dlurlerror):
+        self._urlerror = dlurlerror
+
+
+    def isCritical(self):
+        for i in self.progresses.values():
+            if not i.isEnd() and not i.processor.critical:
+                return False
+
+        else:
+            if self.handler.thrpool.getThreadsFromName('Nbdler-AddNode'):
+                return False
+            return True
+
 
 
     def pause(self):
@@ -358,7 +391,7 @@ class GlobalProgress(Packer, object):
         self.piece.pause()
         self.status.pause()
 
-        self.releaseBuffer()
+        # self.releaseBuffer()
 
         self.save()
 
@@ -406,8 +439,7 @@ class GlobalProgress(Packer, object):
             print(self.handler.file.name, 'shutdown')
 
     def isEnd(self):
-
-        return self.status.endflag and not self.__buff_lock__.locked()
+        return self.status.endflag
 
     def isGoEnd(self):
         return self.status.go_end
@@ -431,13 +463,13 @@ class GlobalProgress(Packer, object):
         return (self.handler.file.size - self.getLeft()) * 1.0 / totaltime if totaltime else 0
 
 
+
+
     def getInsSpeed(self):
         with self.__insspeed_lock__:
 
             curleft = self.getLeft()
             curclock = time.time()
-
-
 
             if self.piece.last_left is None:
                 self.piece.last_left = curleft
@@ -449,8 +481,6 @@ class GlobalProgress(Packer, object):
 
             incbyte = self.piece.last_left - curleft
             incclock = curclock - self.piece.last_clock
-
-
 
 
             if incclock >= 1:
@@ -474,7 +504,7 @@ class GlobalProgress(Packer, object):
         return ins_speed
 
     def close(self):
-        self.releaseBuffer()
+        self._release_signal.set()
         self.status.endDone()
 
         self.status.endflag = True
@@ -499,37 +529,49 @@ class GlobalProgress(Packer, object):
 
             return miss
 
+    def is_ready(self):
+        return not self.shutdown_flag and not self.status.pauseflag
+
 
     def releaseBuffer(self):
-        with self.__buff_lock__:
-            buffqueue = []
 
-            for i in self.progresses.values():
-                if i.processor.buff:
-                    buffqueue.append(i.processor)
-
-            if not buffqueue:
-                return
-
+        try:
             f = self.fs if self.__mode__ == MANUAL else \
                 open(os.path.join(self.handler.file.path, self.handler.file.name), 'rb+')
-            with f:
-                for processor in buffqueue:
-                    processor.releaseBuffer(f)
+        except Exception as e:
+            threading.Thread(target=self.shutdown).start()
+            return
 
-                f.flush()
+        with f:
+            while True:
+                if self.isEnd() or not self.is_ready():
+                    break
+                self._release_signal.wait(1)
+                self._release_signal.clear()
+                self._release(f)
 
-            gc.collect()
+            self._release(f)
 
-            self.save()
+    def _release(self, f):
+        buffqueue = []
+        for i in self.progresses.values():
+            if i.processor.buff:
+                buffqueue.append(i.processor)
+        buffqueue = sorted(buffqueue, key=lambda x: x.progress.begin)
+        if buffqueue:
+
+            for processor in buffqueue:
+                processor.releaseBuffer(f)
+            f.flush()
+        gc.collect()
+        self.save()
 
 
     def checkBuffer(self, bytelen):
         self.__buff_counter__ += bytelen
-
         if self.__buff_counter__ >= self.handler.file.buffer_size:
             self.__buff_counter__ = 0
-            self._Thread(target=self.releaseBuffer, name='Nbdler-ReleaseBuffer').start()
+            self._release_signal.set()
 
     def save(self):
         if not self.__packet_frame__:
@@ -558,8 +600,6 @@ class GlobalProgress(Packer, object):
                     progress = i
                     break
             else:
-            # if not progress:
-            #     print('???????', Range, self.progresses.keys(), self.handler.file.name)
                 for i in cur_progresses:
                     if i.begin == Range[1]:
                         gap = True
@@ -572,7 +612,6 @@ class GlobalProgress(Packer, object):
                     return Range
 
                 if not progress:
-                    # print(Range, self.progresses.keys())
                     return []
 
             return progress.processor.cutRequest(Range)
@@ -612,12 +651,3 @@ class GlobalProgress(Packer, object):
 
         self.status.endflag = self.status.go_end = self.status.done_end = self.isEnd()
 
-    # def __del__(self):
-    #     self.releaseBuffer()
-    #     if self.__mode__ == AUTO:
-    #         if not self.isEnd():
-    #             self.save()
-
-        # object.__del__(self)
-
-        # del self.__del__

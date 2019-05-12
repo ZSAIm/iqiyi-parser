@@ -4,17 +4,18 @@ import threading
 import time
 
 class ThreadPool:
-    def __init__(self):
+    def __init__(self, Handler):
+        self._handler = Handler
         self._threads = []
         self._insp_thr_ = None
         self._app_lock = threading.Lock()
 
     def Thread(self, *args, **kwargs):
         with self._app_lock:
-            thr = threading.Thread(*args, **kwargs)
+            thr = threading.Thread(*args, daemon=self._handler._daemon, **kwargs)
             self._threads.append(thr)
             if not self._insp_thr_ or (self._insp_thr_._started.is_set() and not self._insp_thr_.isAlive()):
-                self._insp_thr_ = threading.Thread(target=self.__insp__, name='Nbdler-ThreadPool')
+                self._insp_thr_ = threading.Thread(target=self.__insp__, name='Nbdler-ThreadPool', daemon=self._handler._daemon)
                 self._insp_thr_.start()
         return thr
 

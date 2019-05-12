@@ -16,6 +16,7 @@ import threading
 import flow
 import handler
 from handler.logs import STDRedirect
+import io
 
 socket.setdefaulttimeout(3)
 
@@ -49,8 +50,8 @@ if __name__ == '__main__':
         main()
         gui.MainLoop()
 
-        handler.downloader.join()
+        # handler.downloader.join()
 
         # wait_thread()
 
-        pass
+

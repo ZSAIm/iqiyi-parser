@@ -7,7 +7,7 @@ import re
 import wx
 from gui.frame_merger import MergerOutputAppendEvent, MergerOutputUpdateEvent
 
-
+import gc
 
 SHUTDOWN = False
 
@@ -136,6 +136,8 @@ class Ffmpeg(threading.Thread):
         pass
 
     def pipe_open(self, cmdline):
+        wx.PostEvent(gui.frame_merger.textctrl_output, MergerOutputAppendEvent('>>> ' + cmdline + '\n\n'))
+
         self.proc = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True,
                                 stderr=subprocess.PIPE)
 
@@ -160,10 +162,13 @@ class Ffmpeg(threading.Thread):
         stderr_thr.start()
 
         self.handle_output(self._stderr_buff, stderr_thr)
+        self._stderr_buff = self._stdout_buff = []
+        gc.collect()
 
     def MergeVideoAudio(self):
         cmdline = '"{ffmpeg_path}" -i "{video}" -i "{audio}" -vcodec copy -acodec copy "{output}{ext}"'
         cmdline = cmdline.format(video=self.src[0], audio=self.src[1], output=self.dst, ffmpeg_path=cv.FFMPEG_PATH, ext=cv.TARGET_FORMAT)
+
         self.pipe_open(cmdline)
 
     def ConcatProtocal(self):
