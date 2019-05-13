@@ -259,13 +259,13 @@ class Handler:
         return False
 
     def insert_new_item(self, run_queue):
-        new = list(filter(lambda x: self.dlm.getNameFromId(x) not in gui.frame_downloader.getItemsDict(),
+        new = list(filter(lambda x: self.dlm.getNameById(x) not in gui.frame_downloader.getItemsDict(),
                           run_queue))
 
         for i in new:
-            dl = self.dlm.getHandler(id=i)
+            dl = self.dlm.get(id=i)
             size = dl.getFileSize()
-            cur_name = self.dlm.getNameFromId(i)
+            cur_name = self.dlm.getNameById(i)
             gui.frame_downloader.insertItem(cur_name, size)
             gui.frame_downloader.updateBlock(cur_name, gui.COLOR_RUN)
 
@@ -274,11 +274,11 @@ class Handler:
             # gui.frame_main.sizer_items.Layout()
 
     def delete_end_item(self, done_queue):
-        end = list(filter(lambda x: self.dlm.getIdFromName(x) in done_queue,
+        end = list(filter(lambda x: self.dlm.getIdByName(x) in done_queue,
                           gui.frame_downloader.getItemsDict()))
 
         for i in end:
-            dl = self.dlm.getHandler(name=i)
+            dl = self.dlm.get(name=i)
             size = dl.getFileSize()
             item = gui.frame_downloader.getItem(i)
             item.update(size, dl.getInsSpeed(), size)
@@ -291,20 +291,20 @@ class Handler:
 
     def update_item(self, run_queue):
         for i in run_queue:
-            dl = self.dlm.getHandler(id=i)
+            dl = self.dlm.get(id=i)
             inc_byte = dl.getIncByte()
             size = dl.getFileSize()
-            item = gui.frame_downloader.getItem(self.dlm.getNameFromId(i))
+            item = gui.frame_downloader.getItem(self.dlm.getNameById(i))
             if item:
                 item.update(inc_byte, dl.getInsSpeed(), size)
 
     def update_total(self, run_queue, done_queue):
         cur_inc = 0
         for i in done_queue:
-            dl = self.dlm.getHandler(id=i)
+            dl = self.dlm.get(id=i)
             cur_inc += dl.getFileSize()
         for i in run_queue:
-            dl = self.dlm.getHandler(id=i)
+            dl = self.dlm.get(id=i)
             cur_inc += dl.getIncByte()
 
         gui.frame_downloader.updateTotal(cur_inc + self._inc_progress, self.dlm.getInsSpeed(), self.dlm.getTotalSize() + self._inc_progress)

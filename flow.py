@@ -180,12 +180,12 @@ class GetTool:
         dlm = dlg.dlm
         runs = dlm.getRunQueue()
         if runs:
-            dl = dlm.getHandler(id=runs[0])
+            dl = dlm.get(id=runs[0])
             dlg.update(dl.getIncByte(), dl.getFileSize())
         if dlm.isEnd():
             dones = dlm.getDoneQueue()
             if dones:
-                dl = dlm.getHandler(id=dones[0])
+                dl = dlm.get(id=dones[0])
                 dlg.update(dl.getFileSize(), dl.getFileSize())
                 event.Timer.Stop()
                 dlg.EndModal(wx.ID_OK)
@@ -274,10 +274,6 @@ class FrameParser:
     @staticmethod
     def handle():
         gui.frame_parse.Show()
-        # if gui.frame_parse.ShowModal() == cv.ID_PARSER_GODOWNLOAD:
-        # FrameDownload.handle()
-        # else:
-        # ShutDown.handle()
 
 
 
@@ -538,6 +534,8 @@ class FrameParser:
 
                 if FrameParser.MenuGoDownload.handler_audio(sel_res):
                     threading.Thread(target=FrameParser.MenuGoDownload._download, args=(sel_res,)).start()
+                else:
+                    gui.frame_parse.listctrl_parse.menu.godownload.Enable(True)
 
         @staticmethod
         def handler_audio(sel_res):
