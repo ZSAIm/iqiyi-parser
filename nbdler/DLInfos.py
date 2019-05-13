@@ -79,6 +79,18 @@ class UrlPool(Packer, object):
 
 
 
+    def reloadAll(self):
+        if not self._url_box:
+            return False
+        for i in self._url_box.values():
+            if self.load_url(i):
+                self._mapid[self.getUrlId(i)] = True
+                self.parent.file.updateFromUrl(urlobj)
+                break
+        else:
+            return False
+        return True
+
 
     def addNode(self, id=-1, url='', cookie='', headers=HEADERS_CHROME,
             host=None, port=None, path=None, protocol=None,
@@ -90,9 +102,18 @@ class UrlPool(Packer, object):
         urlobj = Url(id, url, cookie, headers, host, port, path, protocol, proxy, max_thread, range_format)
         if urlobj in self._url_box.values():
             return
-        # self.list.append(urlobj)
-        self._url_box[id] = urlobj
 
+        self._url_box[id] = urlobj
+        try:
+            if self.load_url(urlobj):
+                self._mapid[id] = True
+                self.parent.file.updateFromUrl(urlobj)
+        except DLUrlError as e:
+            if not self.reloadAll():
+                raise
+
+
+    def load_url(self, urlobj):
         retry_counter = self.max_retry
         counter_4xx = 0
         while True:
@@ -108,7 +129,7 @@ class UrlPool(Packer, object):
                             if self.parent.file.size == -1 and len(self.parent.threads.getAll(cv.ADDNODE)) <= 1:
                                 _except = DLUrlError(self.parent, res)
                                 self.parent.globalprog.raiseUrlError(_except)
-                            return
+                            return False
 
                 if self.parent.status.pausing():
                     break
@@ -120,13 +141,19 @@ class UrlPool(Packer, object):
             else:
                 _except = DLUrlError(self.parent, Exception('MaxRetryExceed', 'UrlNotRespond'))
                 self.parent.globalprog.raiseUrlError(_except)
-                return
-
-        self._mapid[id] = True
-        self.parent.file.updateFromUrl(urlobj)
+                return False
+        return True
 
     def getAllId(self):
         return self._mapid
+
+
+    def getUrlId(self, Url):
+        for i, j in self._url_box.items():
+            if j == Url:
+                return i
+
+        return None
 
 
     def getNextId(self, cur_id):

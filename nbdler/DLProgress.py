@@ -374,16 +374,19 @@ class GlobalProgress(Packer, object):
     def _is_critical(self):
         if self._is_go_end():
             return False
+        critical = False
         for i in list(self.progresses.values()):
-            if not i.isEnd() and not i.processor.critical:
-                return False
-        else:
-            if self._threads.getAll(cv.ADDNODE):
-                return False
-            if self._threads.getAll(cv.LAUNCHER):
-                return False
-            return True
+            if not i.isEnd() and i.processor.critical:
+                critical = True
+                # return False
+        # else:
+            # if self._threads.getAll(cv.ADDNODE):
 
+                # return False
+            # if self._threads.getAll(cv.LAUNCHER):
+            #     return False
+            # return True
+        return critical
 
     def isCritical(self):
         """export: isCritical()"""

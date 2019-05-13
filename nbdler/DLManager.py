@@ -47,6 +47,7 @@ class Manager(Packer, object):
 
             time.sleep(0.01)
 
+
     def checkRunQueue(self):
         with self._queue_lock:
             for i in list(self._queue.run):
@@ -61,6 +62,19 @@ class Manager(Packer, object):
             if not self._queue.run and not self._queue.undone:
                 self.status.endGo()
                 self.status.endDone()
+
+    def isCritical(self):
+        return False
+        # if self.status.isEnd():
+        #     return False
+        # critical = False
+        # for i in list(self.getAll().values()):
+        #     if not i.isEnd() and i.isCritical():
+        #         critical = True
+        # # else:
+        # return critical
+            # return True
+
 
     def getExcept(self):
         return list(self._url_excepts.queue)
