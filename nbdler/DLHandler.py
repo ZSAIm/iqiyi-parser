@@ -13,7 +13,6 @@ from .DLThreadPool import ThreadPool
 #
 # logger = logging.getLogger('nbdler')
 
-
 __URL_NODE_PARAMS__ = {
     'urls': 'url',
     'cookies': 'cookie',
@@ -26,15 +25,29 @@ __URL_NODE_PARAMS__ = {
     # 'pull_flags': 'pull_flag'
 }
 
+
+__CONFIG__ = {
+    'filename': 'file.name',
+    'filepath': 'file.path',
+    'block_size': 'file.BLOCK_SIZE',
+    'max_conn': 'url.max_conn',
+    'buffer_size': 'file.buffer_size',
+    'max_speed': 'url.max_speed',
+    'wait_for_run': '_wait_for_run',
+    'daemon': '_daemon',
+    'max_retry': 'url.max_retry'
+}
+
 class Handler(Packer, object):
 
     def __init__(self):
         self.url = UrlPool(self)
         self.file = File(self)
 
-        self.thrpool = ThreadPool(self)
+        self.threads = ThreadPool(False)
 
         self.__globalprog__ = GlobalProgress(self, AUTO)
+        self.status = self.__globalprog__.status
 
         self.__new_project__ = True
 
@@ -42,10 +55,14 @@ class Handler(Packer, object):
 
         # self.shutdown_flag = False
 
-        self._wait_for_run = False
+        # self._wait_for_run = False
         self._batchnode_bak = None
 
         self._daemon = False
+
+    def setDaemon(self, daemonic):
+        self._daemon = daemonic
+        self.threads.setDaemon(daemonic)
 
     def uninstall(self):
         self.globalprog = self.__globalprog__
@@ -76,7 +93,7 @@ class Handler(Packer, object):
 
             pack_yield.append(node)
 
-        self.thrpool.Thread(target=self.__batchAdd__, args=(pack_yield,), name='Nbdler-AddNode').start()
+        self.threads.Thread(target=self.__batchAdd__, args=(pack_yield,), name=cv.ADDNODE).start()
         print(self.file.name)
 
     def addNode(self, *args, **kwargs):
@@ -86,7 +103,7 @@ class Handler(Packer, object):
         if urlid:
             self.url.delete(urlid)
         elif url:
-            for i in self.url.dict.values():
+            for i in self.url._url_box.values():
                 if i.url == url:
                     self.url.delete(i.id)
 
@@ -113,30 +130,13 @@ class Handler(Packer, object):
     def join(self):
         self.globalprog.join()
 
-    def isAllDead(self):
-        return self.thrpool.isAllDead()
-
-
     def isCritical(self):
         return self.globalprog.isCritical()
 
 
-    def __config_params__(self):
-        return {'filename': 'file.name',
-                'filepath': 'file.path',
-                'block_size': 'file.BLOCK_SIZE',
-                'max_conn': 'url.max_conn',
-                'buffer_size': 'file.buffer_size',
-                'max_speed': 'url.max_speed',
-                'wait_for_run': '_wait_for_run',
-                'daemon': '_daemon',
-                'max_retry': 'url.max_retry'
-        }
-
-
     def config(self, **kwargs):
 
-        for i, j in self.__config_params__().items():
+        for i, j in __CONFIG__.items():
             if i in kwargs:
                 objs = j.split('.')
                 if len(objs) == 1:
@@ -148,108 +148,30 @@ class Handler(Packer, object):
                     setattr(attr, objs[-1], kwargs[i])
 
     def close(self):
-        if not self.globalprog.isEnd():
-            raise Exception('DownloadNotComplete')
-        for i in self.thrpool.getThreadsFromName(name='Nbdler-ReleaseBuffer'):
-            i.join()
+        if not self.status.isEnd():
+            raise RuntimeError("download isn't completed.")
+
+        self.join()
+
         if os.path.isfile(os.path.join(self.file.path, self.file.name + '.nbdler')):
             os.remove(os.path.join(self.file.path, self.file.name + '.nbdler'))
 
-    def fileVerify(self, sample_size=4096):
-        self.install(GlobalProgress(self, MANUAL))
-
-        if sample_size > self.file.BLOCK_SIZE:
-            raise Exception('ParamsError')
-
-        for i, j in self.globalprog.progresses.items():
-            Range = segToRange(i)
-            self.insert(Range[1] - sample_size, Range[1])
-
-        self.manualRun()
-
-        while not self.globalprog.isEnd():
-            time.sleep(0.1)
-
-        all_value = self.globalprog.fs.getvalue()
-
-        damage = []
-
-        with open(os.path.join(self.file.path, self.file.name), 'rb') as f:
-            for i, j in all_value.items():
-                Range = segToRange(i)
-                f.seek(Range[0])
-                if f.read(sample_size) != j:
-                    damage.append(i)
-
-        self.uninstall()
-        return damage
-
-
-    def is_shutdown(self):
-        return self.globalprog.shutdown_flag
-
-    def fix(self, segs):
-        self.fix(segs)
-
-    # def sampleUrls(self, sample_size=1024 * 1024):
-    #
-    #     import random
-    #
-    #     self.url.matchSize()
-    #
-    #     if self.file.size < sample_size:
-    #         sample_size = self.file.size
-    #
-    #     _begin = random.randint(0, self.file.size - sample_size)
-    #     _end = _begin + sample_size
-    #
-    #     global_dict = {}
-    #     for i in self.url.getAllUrl().keys():
-    #         glob = GlobalProgress(self, MANUAL)
-    #         global_dict[i] = glob
-    #         self.install(glob)
-    #         self.insert(_begin, _end, i)
-    #         self.manualRun()
-    #
-    #     while True:
-    #         for i in global_dict.values():
-    #             if not i.isEnd():
-    #                 break
-    #         else:
-    #             break
-    #         time.sleep(0.1)
-    #
-    #     samples = {}
-    #
-    #     for i, j in global_dict.items():
-    #         i.fs.seek(_begin)
-    #         samples[i] = i.fs.read(sample_size)
-    #
-    #     sample_type = []
-    #     sample_type.append([samples.keys()[0]])
-    #     for i, j in samples.items():
-    #         for m in sample_type:
-    #             if i not in m:
-    #                 if samples[i] == samples[m[0]]:
-    #                     m.append(i)
-    #                     break
-    #             else:
-    #                 break
-    #         else:
-    #             sample_type.append([i])
-    #
-    #     self.uninstall()
-    #
-    #     return sample_type
 
     def __run__(self):
-        if self.file.size == -1 and self._batchnode_bak and self._wait_for_run:
+        if self.file.size == -1 and self._batchnode_bak:
             self.batchAdd(**self._batchnode_bak)
+
+        # for i in self.threads.getThreads(cv.ADDNODE):
+        while self.file.size == -1:
+            if not self.threads.getAll(cv.ADDNODE):
+                if self.file.size == -1:
+                    return
+            time.sleep(0.01)
+
         if self.__new_project__:
-            if not self.file.makeFile():
-                return
-            if self.file.size == -1:
-                return
+            self.file.makeFile()
+            # if self.file.size == -1:
+            #     return
 
             self.globalprog.allotter.makeBaseConn()
             self.globalprog.save()
@@ -258,23 +180,30 @@ class Handler(Packer, object):
 
 
     def run(self):
-        self.thrpool.Thread(target=self.__run__, name='Nbdler-Launch').start()
+        self.threads.Thread(target=self.__run__, name=cv.LAUNCHER).start()
 
     def pause(self):
         self.globalprog.pause()
+        print(self.file.name, 'paused')
+
+    shutdown = pause
+
+    # def pausing(self):
+    #     return self.globalprog.status.pausing()
 
     def isEnd(self):
-        return self.globalprog.isEnd()
+        return self.status.isEnd()
 
     def unpack(self, packet):
         Packer.unpack(self, packet)
         self.__new_project__ = False
 
-    def shutdown(self):
-        # if not self.isEnd():
-        self.globalprog.shutdown_flag = True
-        self.globalprog.shutdown()
-        self.globalprog.shutdown_flag = False
+    # def shutdown(self):
+    #     # if not self.isEnd():
+    #     # self.globalprog.shutdown_flag = True
+    #     self.globalprog.shutdown()
+    #     # self.globalprog.shutdown_flag = False
+
 
 
     def __packet_params__(self):
@@ -288,7 +217,7 @@ class Handler(Packer, object):
         return self.file.size
 
     def getAllUrl(self):
-        return self.url.dict
+        return self.url._url_box
 
     def getInsSpeed(self):
         return self.globalprog.getInsSpeed()
@@ -308,19 +237,22 @@ class Handler(Packer, object):
     def getConnections(self):
         return self.globalprog.getConnections()
 
-    def getBlockMap(self):
-        return self.globalprog.getMap()
+    # def getBlockMap(self):
+    #     return self.globalprog.getMap()
 
+    def getFileStorage(self):
+        return self.globalprog.fs
 
-    def getSegsValue(self):
-        return self.globalprog.fs.getvalue()
-
-    def getSegsSize(self):
-        return self.globalprog.fs.getStorageSize()
+    # def getSegsValue(self):
+    #     return self.globalprog.fs.getvalue()
+    #
+    # def getSegsSize(self):
+    #     return self.globalprog.fs.getStorageSize()
 
 
     def getUrlsThread(self):
         return self.globalprog.allotter.getUrlsThread()
 
-    def __str__(self):
+
+    def __repr__(self):
         return '[%s] - %s' % (self.file.size, self.file.name)

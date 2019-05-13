@@ -1,6 +1,7 @@
 
 import time
-
+from . import DLCommon as cv
+import threading
 # logger = logging.getLogger('nbdler')
 
 
@@ -10,68 +11,78 @@ class Inspector(object):
         self.handler = Handler
         self.allotter = Allotter
 
-        self._selfcheck_thr = None
-        self._allo_thr = None
+        self._insp_thr = None
+        self._allot_thr = None
         self.__limiter_thread__ = None
-
-        # self.__last_wait__ = 0
 
     def install(self, Allotter):
         self.allotter = Allotter
 
-    def _Thread(self, *args, **kwargs):
-        return self.handler.thrpool.Thread(*args, **kwargs)
+    def Thread(self, *args, **kwargs):
+        return self.handler.threads.Thread(*args, **kwargs)
 
     def runAllotter(self):
-        if not self._allo_thr or (self._allo_thr._started.is_set() and not self._allo_thr.isAlive()):
-            self._allo_thr = self._Thread(target=self.__allotter__, name='Nbdler-Allotter')
-            self._allo_thr.start()
+        if not self._allot_thr or self._allot_thr.isStoped():
+            self._allot_thr = self.Thread(target=self._allotter, name=cv.ALLOTTER)
+            self._allot_thr.start()
 
-    def runSelfCheck(self):
-        if not self._selfcheck_thr or not self._selfcheck_thr.isAlive():
-            self._selfcheck_thr = self._Thread(target=self.__selfcheck__, name='Nbdler-SelfCheck')
-            self._selfcheck_thr.start()
+    def runInspector(self):
+        if not self._insp_thr or self._insp_thr.isStoped():
+            self._insp_thr = self.Thread(target=self._inspector, name=cv.INSPECTOR)
+            self._insp_thr.start()
 
-    # def runLimiter(self):
-    #     if self.handler.url.max_speed != -1:
-    #         if not self.__limiter_thread__ or not self.__limiter_thread__.isAlive():
-    #             self.__limiter_thread__ = threading.Thread(target=self.__limiter__)
-    #             self.__limiter_thread__.start()
 
-    def __selfcheck__(self):
+    def _inspector(self):
         while True:
-            if self.globalprog.status.endflag or self.globalprog.status.pauseflag:
+            if self._is_ready():
+                for i in list(self.globalprog.progresses.values()):
+                    if not i.isGoEnd() and not i.processor.isRunning():
+                        i.processor.run()
+            else:
                 break
 
-            for i in list(self.globalprog.progresses.values()):
-                if not i.processor.isGoEnd() and not i.processor.isRunning():
-                    if self.globalprog.pause_req:
-                        return
+            time.sleep(0.5)
 
-                    i.processor.run()
 
-            if self.globalprog.pause_req:
-                return
-            time.sleep(1)
-
-    def __allotter__(self):
+    def _allotter(self):
         while True:
-            if self.globalprog.status.endflag or self.globalprog.pause_req or self.globalprog.status.pauseflag:
-                break
-            with self.allotter.__allotter_lock__:
-                for i in range(self.handler.url.max_conn - len(self.globalprog.getConnections())):
-
-                    if self.globalprog.status.endflag or self.globalprog.pause_req or self.globalprog.status.pauseflag:
+            if self._is_ready():
+                valid_num = self.handler.url.max_conn - len(self.globalprog.getConnections())
+                for i in range(valid_num):
+                    if not self._is_ready():
                         break
-
                     ask_urlid, ask_range = self.allotter.assign()
                     if ask_urlid != -1 and ask_range:
                         ask_range = self.globalprog.askCut(ask_range)
                         if ask_range:
-                            # print('ask_range: ', ask_range)
                             progress = self.globalprog.insert(ask_urlid, *ask_range)
                             progress.run()
-            time.sleep(1.5)
+            else:
+                break
+            time.sleep(1)
+
+        # while True:
+        #     if self.globalprog.status.endflag or self.globalprog.pause_req or self.globalprog.status.pauseflag or self.globalprog.isCritical():
+        #         break
+        #     with self.allotter.__allotter_lock__:
+        #         for i in range(self.handler.url.max_conn - len(self.globalprog.getConnections())):
+        #
+        #             if self.globalprog.status.endflag or self.globalprog.pause_req or self.globalprog.status.pauseflag:
+        #                 break
+        #
+        #             ask_urlid, ask_range = self.allotter.assign()
+        #             if ask_urlid != -1 and ask_range:
+        #                 ask_range = self.globalprog.askCut(ask_range)
+        #                 if ask_range:
+        #                     # print('ask_range: ', ask_range)
+        #                     progress = self.globalprog.insert(ask_urlid, *ask_range)
+        #                     progress.run()
+        #     time.sleep(1.5)
+
+    def _is_ready(self):
+        return not self.globalprog.isGoEnd() and not self.globalprog.status.pausing() and \
+               not self.globalprog.isCritical() and not self.globalprog.status.isPaused()
+
 
     # def __limiter__(self):
     #     while True:
@@ -98,6 +109,6 @@ class Inspector(object):
 
 
     def run(self):
-        self.runSelfCheck()
+        self.runInspector()
         self.runAllotter()
         # self.runLimiter()
