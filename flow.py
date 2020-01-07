@@ -49,6 +49,7 @@ from urllib.parse import urljoin
 from core.common import raw_decompress
 import gzip, json
 import io, sys, time
+import platform
 
 TOOL_REQ_URL = {
     'ffmpeg': 'https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-3.2-win64-static.zip',
@@ -123,6 +124,9 @@ class GetTool:
     @staticmethod
     def checkFfmpeg():
         dlm = nbdler.Manager()
+        if (platform.system()!='Windows'):
+            print('非windows系统请自行安装ffmpeg')
+            return True
         if (not os.path.exists('ffmpeg.exe') or os.path.exists('ffmpeg.exe.nbdler')) and not os.path.exists(cv.FFMPEG_PATH):
             dlg = wx.MessageDialog(None, u'该程序需要ffmpeg.exe才能完成工作，是否要下载？', u'提示', wx.YES_NO | wx.ICON_INFORMATION)
             if dlg.ShowModal() != wx.ID_YES:
@@ -152,6 +156,9 @@ class GetTool:
     @staticmethod
     def checkNode():
         dlm = nbdler.Manager()
+        if (platform.system()!='Windows'):
+            print('非windows系统请自行安装node')
+            return True
         if not os.path.exists('node.exe') or os.path.exists('node.exe.nbdler'):
             dlg = wx.MessageDialog(None, u'该程序需要Nodejs.exe才能完成工作，是否要下载？', u'提示', wx.YES_NO | wx.ICON_INFORMATION)
             if dlg.ShowModal() != wx.ID_YES:
