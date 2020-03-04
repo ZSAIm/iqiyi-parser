@@ -1,0 +1,113 @@
+<header class="main-header">
+
+  <!-- Left navbar links -->
+  <div class="logo">
+      <div class="logo-mini">VideoCrawlerEngine</div>
+      <div class="logo-lg" title="VideoCrawlerEngine">
+          <div class="dropdown">
+              <span class="dropdown-toggle" data-toggle="dropdown"><span class="logo-lg-title">VCE</span>
+                  <i class="fa fa-caret-right fa-right-bottom fa-rotate-45 fa-half" aria-hidden="true"></i>
+              </span>
+              <ul class="dropdown-menu dropdown-menu-right rpcselect-dropdown" role="menu">
+                  <li><a class="pointer-cursor"><span>RPC</span><i class="fa"></i></a></li>
+              </ul>
+          </div>
+      </div>
+  </div>
+
+
+  <nav class="navbar navbar-static-top" role="navigation">
+    <div class="navbar-toolbar">
+      <ul class="nav navbar-nav">
+        <li><a class="toolbar" title="{{ translate('new') }}"><i class="fa fa-plus"></i> <span translate>{{ translate('New') }}</span></a></li>
+        <li class="divider"></li>
+        <li class="disabled" ><a class="toolbar" title="{{ translate('start') }}"><i class="fa fa-play"></i></a></li>
+        <li class="disabled"><a class="toolbar" title="{{ translate('pause') }}"><i class="fa fa-pause"></i></a></li>
+        <li class="disabled"><a class="toolbar dropdown-toggle" data-toggle="dropdown" title="{{ translate('delete') }}">
+          <i class="fa fa-trash-o"></i>
+          <i class="fa fa-caret-right fa-right-bottom fa-rotate-45 fa-half"></i></a>
+          <ul class="dropdown-menu" role="menu">
+            <li><a class="pointer-cursor"><span translate>{{ translate('Remove Task') }}</span></a></li>
+            <li><a class="pointer-cursor"><span translate>{{ translate('Clear Stopped Tasks') }}</span></a></li>
+          </ul>
+        </li>
+        <li class="divider"></li>
+        <li class="disabled">
+          <a class="toolbar" title="{{ translate('select all') }}">
+            <i class="fa fa-th-large" aria-hidden="true"></i>
+          </a>
+        </li>
+        <li class="disabled"><a class="toolbar dropdown-toggle" data-toggle="dropdown" title="{{ translate('display order') }}">
+          <i class="fa fa-sort-alpha-asc"></i>
+          <i class="fa fa-caret-right fa-right-bottom fa-rotate-45 fa-half" aria-hidden="true"></i></a>
+          <ul class="dropdown-menu" role="menu">
+            <li><a class="pointer-cursor"><span translate>{{ translate('Default') }}</span><i class="fa"></i></a></li>
+            <li><a class="pointer-cursor"><span translate>{{ translate('By File Name') }}</span><i class="fa"></i></a></li>
+            <li><a class="pointer-cursor"><span translate>{{ translate('By File Size') }}</span><i class="fa"></i></a></li>
+            <li><a class="pointer-cursor"><span translate>{{ translate('By Progress') }}</span><i class="fa"></i></a></li>
+            <li><a class="pointer-cursor"><span translate>{{ translate('By Remain Time') }}</span><i class="fa"></i></a></li>
+            <li><a class="pointer-cursor"><span translate>{{ translate('By Download Speed') }}</span><i class="fa"></i></a></li>
+            <li><a class="pointer-cursor"><span translate>{{ translate('By Upload Speed') }}</span><i class="fa"></i></a></li>
+          </ul>
+        </li>
+        <li class="divider"></li>
+        <li>
+          <a class="toolbar" title="{{ translate('help') }}" href="https://github.com/ZSAIM/Nbdler" target="_blank">
+            <i class="fa fa-question-circle-o"></i>
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Right navbar links -->
+    <!-- SEARCH FORM -->
+    <div class="navbar-searchbar hidden-xs">
+      <ul class="nav navbar-nav">
+        <li><input class="form-control" title="{{ translate('Search') }}" placeholder="{{ translate('Search') }}">
+          <div class="form-control-fa"><span class="fa fa-search form-control-feedback"></span></div>
+        </li>
+      </ul>
+    </div>
+  </nav>
+</header>
+
+<!-- main-sidebar -->
+
+<aside class="main-sidebar">
+  <section class="sidebar">
+    <ul id="siderbar-menu" class="sidebar-menu" data-widget="tree" data-animation-speed="300">
+      <li class="header" translate>{{ translate('Download') }}</li>
+      <li><a href="#!/downloading"><i class="fa fa-arrow-circle-o-down"></i>
+        <span>{{ translate('Downloading') }}</span></a>
+      </li>
+      <li><a href="#!/waiting"><i class="fa fa-clock-o"></i>
+        <span>{{ translate('Waiting') }}</span></a>
+      </li>
+      <li><a href="#!/stopped"><i class="fa fa-check-circle-o"></i>
+        <span>{{ translate('Finished / Stopped') }}</span></a>
+      </li>
+      <li class="header" translate>{{ translate('Settings') }}</li>
+      <li class="treeview"><a href="javascript:void(0);"><i class="fa fa-cog"></i>
+        <span translate>{{ translate('Settings') }}</span>
+        <span class="pull-right-container"><i class="fa fa-angle-left pull-right"></i></span></a>
+        <ul class="treeview-menu">
+          <li data-href-match="/settings/aria2/basic"><a href="#!/settings/aria2/basic"><span translate>Basic Settings</span></a></li>
+          <li data-href-match="/settings/aria2/http-ftp-sftp"><a href="#!/settings/aria2/http-ftp-sftp"><span translate>HTTP/FTP/SFTP
+                      Settings</span></a></li>
+        </ul>
+      </li>
+      <li class="treeview"><a href="javascript:void(0);"><i class="fa fa-cogs"></i>
+        <span translate>{{ translate('Nbdler Settings') }}</span>
+        <span class="pull-right-container"><i class="fa fa-angle-left pull-right"></i></span></a>
+        <ul class="treeview-menu">
+          <li data-href-match="/settings/aria2/basic"><a href="#!/settings/aria2/basic"><span translate>Basic Settings</span></a></li>
+          <li data-href-match="/settings/aria2/http-ftp-sftp"><a href="#!/settings/aria2/http-ftp-sftp"><span translate>HTTP/FTP/SFTP
+                      Settings</span></a></li>
+        </ul>
+      </li>
+      <li data-href-match="/status"><a href="#!/status"><span class="label pull-right"></span>
+        <i class="fa fa-server"></i> <span translate>{{ translate('Server Status') }}</span></a>
+      </li>
+    </ul>
+  </section>
+</aside>

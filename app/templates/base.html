@@ -1,0 +1,231 @@
+{% extends "bootstrap/base.html" %}
+
+{% block title %}Video Crawler Engine{% endblock %}
+
+
+{% block head %}
+{{ super() }}
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<!--<link rel="stylesheet" href="static/css/bootstrap.min.css">-->
+<!--<link rel="stylesheet" href="static/css/font-awesome.css">-->
+<!--<link rel="stylesheet" href="static/css/costom-ui.css">-->
+<!--<script src="static/js/jquery.min.js"></script>-->
+<!--<script src="static/js/bootstrap.min.js"></script>-->
+<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/custom-ui.css') }}">
+<!-- Font Awesome Icons -->
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/font-awesome.css') }}">
+<!-- Theme style -->
+<style type="text/css">
+    body {
+        max-height: 100%;
+        min-height: 100%;
+        max-width: 100%;
+        /* 避免选中文字 */
+        user-select: none;
+        overflow-x: hidden;
+        overflow-y: hidden
+    }
+</style>
+{% endblock %}
+
+{% block navbar %}
+<header class="main-header ">
+	<div class="dropdown logo">
+		<a class="logo-title" data-toggle="dropdown">VCE
+			<span class="caret"></span>
+		</a>
+		<ul class="dropdown-menu dropdown-menu-right" role="menu">
+			<li><a role="menuitem" tabindex="-1" href="#">下载模式</a></li>
+			<li><a role="menuitem" tabindex="-1" href="#">解析模式</a></li>
+		</ul>
+	</div>
+	<nav class="navbar navbar-static-top" role="navagation">
+
+		<div class="navbar-toolbar">
+			<ul class="nav navbar-nav">
+				<li><a class="toolbar" title="New" data-toggle="modal" data-target="#new-modal">
+					<i class="fa fa-plus"><span class="toolbar-lable">新建</span></i>
+				</a></li>
+				<li class="divider"></li>
+				<li class="disabled"><a class="toolbar" title="Start"><i class="fa fa-play"></i></a></li>
+				<li><a class="toolbar" title="Pause"><i class="fa fa-pause"></i></a></li>
+				<li>
+					<a class="toolbar dropdown" title="Delete" data-toggle="dropdown"><i class="fa fa-trash-o">
+						<span class="caret"></span></i>
+					</a>
+					<ul class="dropdown-menu">
+						<li><a role="menuitem" tabindex="-1" href="#">删除全部</a></li>
+						<li><a role="menuitem" tabindex="-1" href="#">删除一个</a></li>
+						<li><a role="menuitem" tabindex="-1" href="#">删除两个</a></li>
+					</ul>
+				</li>
+
+				<li class="divider"></li>
+			</ul>
+
+		</div>
+
+	</nav>
+</header>
+
+
+{% endblock %}
+
+{% block content %}
+<aside class="main-sidebar">
+	<div>
+
+	</div>
+
+
+</aside>
+
+<div class="main-content">
+	<div class="content-body">
+		<div class="task-table">
+			<div class="task-table-head">
+				<a class="table-name col-xs-4 text-center">文件名<span class="table-adjuster"></span></a>
+				<a class="table-name col-xs-2 text-center">大小<span class="table-adjuster"></span></a>
+				<a class="table-name col-xs-2 text-center">进度<span class="table-adjuster"></span></a>
+				<a class="table-name col-xs-2 text-center">剩余时间<span class="table-adjuster"></span></a>
+				<a class="table-name col-xs-2 text-center">下载速度</a>
+			</div>
+			<div class="tasks">
+				<div class="task">
+					<div class="body-info col-xs-6">
+						<div class="task-icon"><img src="static/favicon.ico"></img></div>
+						<div class="name-url">
+							<span class="task-name">WeChat 2020/1/28.exe</span>
+							<span class="task-url">https://www.bilibili.com/video/av90007661?p=2</span>
+						</div>
+					</div>
+
+					<div class="realtime-info col-xs-4">
+						<div class="progress">
+							<div class="progress-bar" style="width: 20%"></div>
+						</div>
+						<div class="speed-time">
+							<span class="task-speed">1011KB/S</span>
+							<span class="task-timeleft">00:50:19</span>
+						</div>
+					</div>
+
+					<div class="detail">
+						<a class=" task-detail fa fa-angle-right"></a>
+					</div>
+				</div>
+
+			</div>
+
+		</div>
+
+	</div>
+</div>
+
+
+<div class="modal fade" id="new-modal" tabindex="-1" role="dialog" aria-labelledby="new-task" aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+				<h4 class="modal-title">添加下载链接</h4>
+			</div>
+			<div class="modal-body">
+				<!-- 标签页 -->
+				<ul class="nav nav-tabs tab">
+					<li class="active">
+						<a href="#new-urls" data-toggle="tab">
+							 链接
+						</a>
+					</li>
+					<li><a href="#options" data-toggle="tab">选项</a></li>
+
+				</ul>
+				<div id="tab-content" class="tab-content">
+					<div class="tab-pane fade in active" id="new-urls">
+						<p>下载链接(0 个链接):</p>
+						<textarea id="urls" class="urls" placeholder="支持多个URL地址,每个连接占一行."></textarea>
+					</div>
+					<div class="tab-pane fade" id="options">
+						<div>
+							<p>过滤器：</p>
+						</div>
+						<form class="form-horizontal" role="form" id="options">
+
+							<table class="table table-striped">
+								<tbody>
+									<tr>
+										<td class="input-label"><label for="dir" class="control-label">下载路径</label></td>
+										<td class="input"><input type="text" class="form-control" id="dir" placeholder="请输入名字"></td>
+									</tr>
+									<tr>
+										<td class="input-label"><label for="overwrite" class="control-label">允许覆盖</label></td>
+										<td class="input">
+											<select class="form-control", id="overwrite">
+												<option value="1">是</option>
+												<option value="0">否</option>
+											</select>
+										</td>
+									</tr>
+									<tr>
+										<td class="input-label"><label for="max_speed" class="control-label">最大下载速度</label></td>
+										<td class="input">
+											<div class="input-group">
+												<input type="text" class="form-control" placeholder="0">
+												<span class="input-group-addon" id="max_speed">KB/S</span>
+											</div>
+										</td>
+									</tr>
+									<!-- <tr>
+										<td class="input-label"><label for="max_task" class="control-label">同时最大下载数</label></td>
+										<td class="input">
+											<select class="form-control">
+												<option>1</option>
+												<option>2</option>
+												<option>3</option>
+												<option>4</option>
+												<option>5</option>
+											</select>
+										</td>
+									</tr> -->
+								</tbody>
+							</table>
+						</form>
+					</div>
+				</div>
+
+			</div>
+			<div class="modal-footer">
+				<!-- <button type="button" class="btn btn-default" data-dismiss="modal">关闭</button> -->
+				<button type="button" class="btn btn-primary" id="go-download">立即下载</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<footer class="main-footer navbar-fixed-bottom">
+	<div class="navbar-toolbar">
+		<ul class="nav navbar-nav">
+			<li><a class="toolbar fold" title="fold" id="fold"><i class="fa fa-bars"></i></a></li>
+			<li class="divider"></li>
+			<li><a class="toolbar settings" title="settings"><i class="fa fa-wrench"></i></a></li>
+
+
+		</ul>
+	</div>
+</footer>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- AdminLTE App -->
+<!--<script src="static/js/adminlte.min.js"></script>-->
+<script src="{{ url_for('static', filename='js/custom.js') }}"></script>
+
+{% endblock %}
+
+
+

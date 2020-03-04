@@ -1,57 +1,43 @@
-# -*- coding: utf-8 -*-
-"""
+# -*- coding: UTF-8 -*-
 
-author: ZSAIm
-
-github: https://github.com/ZSAIm/iqiyi-parser
-
-"""
-
-
-import gui
-import wx, time, sys
-import GUIEventBinder
-import socket
-import threading
-import flow
-import handler
-from handler.logs import STDRedirect
-import io
-
-socket.setdefaulttimeout(3)
+from app import create_flask_app
+from webdriver import create_wx_app
+from downloader import mgr
+from utils import forever_run
+from script import init_script
+import config
 
 
 def main():
-    threading.Thread(target=__main__).start()
+    """ 主程序。 """
+    # 加载程序配置
+    config.load()
+    # 创建GUI
+    wx_app = create_wx_app()
+    # 创建后台服务器
+    flask_app = create_flask_app()
+    # 启动后台服务器
+    forever_run(flask_app.run, port=5999)
+    # 初始化脚本
+    init_script()
+    # 启动下载管理器
+    mgr.start()
 
-def __main__():
-    wx.CallAfter(flow.Entry.handle)
+    # 加载WebUI
+    wx_app.frame.browser.LoadURL('http://127.0.0.1:{port}'.format(port=5999))
 
-def wait_thread():
-    """can't run while debugging"""
-    main_thread = threading.main_thread()
-    for i in threading.enumerate():
-        if i != main_thread:
-            i.join()
+    # GUI主循环
+    wx_app.MainLoop()
+
+
+def destroy():
+    """ 销毁程序。"""
+    # 关闭下载管理器。
+    mgr.close()
 
 
 if __name__ == '__main__':
-    # with open('error.log', 'a+') as ferr:
-    #     ferr.write('------------------------\n')
-    #     ferr.write('%s\n' % time.asctime(time.localtime(time.time())))
-    #     ferr.write('------------------------\n')
-    #     sys.stderr = ferr
-
-        gui.init()
-        GUIEventBinder.init()
-
-        sys.stdout = STDRedirect(sys.stdout)
-        sys.stderr = STDRedirect(sys.stderr)
-        main()
-        gui.MainLoop()
-
-        # handler.downloader.join()
-
-        # wait_thread()
+    main()
+    destroy()
 
 

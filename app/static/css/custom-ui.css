@@ -1,0 +1,362 @@
+.nav>li.divider{
+	padding: 10px 0;
+	margin-left: 4px;
+	margin-right: 4px;
+	border-right: 1px solid #ccc;
+	position: relative;
+	top: 15px;
+}
+.main-header {
+	width: 100%;
+	top: 0;
+	left: 0;
+	right: 0;
+	position: relative;
+}
+a, a:hover, a:active {
+	text-decoration: none;
+}
+.main-header .logo {
+	width: 180px;
+	background-color: #333;
+	float: left;
+	height: 50px;
+	line-height: 50px;
+	/* border-bottom: 1px solid #ddd; */
+}
+
+.main-header .navbar {
+	margin-left: 180px;
+	width: 100%;
+	position: absolute;
+	margin-bottom: 0px;
+	background-color: #f6f6f6;
+	/* border-bottom: 1px solid #ddd; */
+	border-bottom: 0;
+	/* overflow: hidden; */
+}
+
+.main-header .navbar-toolbar {
+	/* overflow: hidden; */
+}
+
+/* 避免下拉菜单与按钮重叠 */
+.main-header .logo .logo-title {
+	float: none;
+	color: #e6e6e6;
+	width: 100%;
+	text-align: center;
+	border-width: 0px;
+	display: block;
+	cursor: pointer;
+}
+/* 避免下拉菜单出现分割感 */
+.main-header .logo .dropdown-menu {
+	margin-top: -1px;
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+}
+.main-header a {
+	font-size: 18px;
+	font-family: "arial";
+}
+/* 避免小屏收缩导航工具栏 */
+.navbar-nav>li {
+	float: left;
+}
+
+
+.main-header .navbar-nav a, .main-footer .navbar-nav a{
+	color: #707070;
+	padding-top: 15px;
+	padding-bottom: 15px;
+	cursor: pointer;
+
+}
+.main-header .toolbar:hover {
+	color: #0055ff;
+}
+
+.main-header .navbar-nav li{
+	color: #707070;
+	/* padding-top: 15px; */
+	/* padding-bottom: 15px; */
+}
+.main-header .navbar-nav li.disabled a{
+	color: #d6d6d6;
+	cursor: default;
+	/* padding-top: 15px; */
+	/* padding-bottom: 15px; */
+}
+.main-header .navbar-nav {
+	margin: 0
+}
+.main-header .toolbar-lable {
+	margin-left: 5px;
+	font-size: 15px;
+}
+/* .main-header .navbar-toolbar .toolbar .active {
+	cursor: pointer;
+} */
+/* 侧边栏 */
+.main-sidebar {
+	/* border-top: 1px solid red; */
+	background-color: #3c4852;
+	width: 180px;
+	/* height: 100%; */
+	position: absolute;
+	margin-top: 50px;
+
+}
+
+
+.modal-content {
+	border-radius: 3px;
+}
+/* 模态框 */
+.modal-header {
+	border-bottom-width: 0px;
+	padding-bottom: 5px;
+}
+.modal-body {
+	padding-top: 0px;
+}
+.modal-body .tab li.active>a {
+	border-width: 0px;
+	/* border-bottom: 1px dotted #ddd; */
+	color: #0055ff;
+	margin-right: 0;
+}
+.modal-body .tab li>a {
+	color: #bbb;
+	border-width: 0;
+	margin-right: 0;
+
+}
+.modal-body .tab li>a:hover {
+	color: #0055ff;
+	background-color: transparent;
+	border-width: 0;
+}
+.modal-body .tab li.active {
+	border-bottom: 3px solid #0055ff;
+}
+
+.modal-body .tab li {
+	border-width: 0px;
+}
+.modal-body .tab {
+	border-bottom: 1px dotted #ddd;
+}
+.modal-body .tab-pane {
+	margin-top: 20px;
+}
+.modal-body .urls {
+	padding: 5px 10px;
+	width: 100%;
+	max-width: 100%;
+	min-width: 100%;
+	min-height: 200px;
+	height: 200px;
+}
+.modal-footer {
+    padding-top: 10px;
+    border-width: 0;
+}
+
+.modal-body .table .input-label {
+	/* color: #888; */
+	font-weight: 0;
+	width: 25%;
+
+}
+.modal-body .table .control-label {
+	/* color: #888; */
+	overflow: hidden;
+	white-space: unwrap;
+	text-overflow: clip;
+}
+input.form-control, select.form-control, span.input-group-addon {
+	/* color: #888; */
+	border-radius: 0px;
+
+}
+
+/* 内容栏 */
+.main-content {
+	padding-left: 180px;
+	border-width: 0px;
+	/* height: 100%; */
+	width: 100%;
+	position: relative;
+	padding-top: 50px;
+	font-family: Arial, Helvetica, sans-serif;
+	font-size: 14px;
+	/* margin-top: 50px; */
+}
+
+
+
+
+.main-content .content-body {
+	border-top: 1px solid #ddd;
+	padding-top: 2px;
+	height: 100%;
+	width: 100%;
+}
+
+.main-content .task-table {
+	width: 100%;
+	height: 100%;
+	/* background-color: darkblue; */
+}
+.main-content .task {
+	height: 77px;
+	padding-left: 5px;
+	border-bottom: 1px solid #eee;
+	display: block;
+}
+.main-content .task-table-head {
+	height: 20px;
+	/* background-color: white; */
+}
+
+.main-content .task-table-head .table-name {
+	cursor: pointer;
+	height: 100%;
+	/* border-right: 1px solid #e8e8e8; */
+	color: black;
+	padding: 0;
+}
+
+.main-content .table-adjuster{
+	border-left: 1px solid #e8e8e8;
+	height: 100%;
+	float: right;
+	cursor: ew-resize;
+}
+.main-content .tasks {
+	overflow-y: auto;
+	overflow-x: hidden;
+	height: 100%;
+}
+.main-content .task .task-icon {
+	float: left;
+	height: 32px;
+	width: 32px;
+	margin: 6px 0;
+	/* margin-top: 5px; */
+	/* height: 100%; */
+}
+.main-content .task .task-icon img {
+	float: left;
+	height: 32px;
+	width: 32px;
+	/* margin: 20px 15px; */
+	/* height: 100%; */
+}
+.main-content .task .body-info, .main-content .task .realtime-info {
+	margin-top: 20px;
+	/* margin-bottom: 16px; */
+	float: left;
+}
+.main-content .task .name-url {
+	float: left;
+	margin-left: 16px;
+}
+.main-content .task .name-url span {
+	display: block;
+	/* margin-top: 5px; */
+	/* margin-bottom: 5px; */
+}
+.main-content .task .task-name {
+	font-weight: 600;
+
+}
+.main-content .task .task-url {
+	color: #a6a6a6;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	width: 100%;
+	white-space: nowrap;
+
+}
+.main-content .task .realtime-info {
+	/* width: 95%; */
+	/* margin-top: 8px;
+	margin-bottom: 8px;
+	float: left; */
+}
+.main-content .task .task-speed {
+	/* line-height: 70px; */
+	float: left;
+
+}
+.main-content .task .task-timeleft {
+	float: right;
+}
+
+.main-content .progress {
+	margin-top: 7px;
+	margin-bottom: 3px;
+	float: left;
+	height: 10px;
+	width: 100%;
+	/* margin-bottom: 2px; */
+
+}
+.main-content .progress-bar {
+	/* height: 10px; */
+	/* line-height: 90px; */
+}
+
+.main-content .task .task-size, .main-content .task .speed-time {
+	color: #a6a6a6;
+	font-family: Segoe UI,Roboto,Helvetica Neue,Arial,Noto Sans,sans-serif;
+	font-size: 13px;
+}
+.main-content .task span {
+	position: relative;
+}
+
+.main-content .task:hover {
+	background-color: #f3f3f3;
+}
+
+.main-content .task:hover .task-detail{
+	color: #cacaca;
+}
+
+.main-content .task .task-detail{
+	color: transparent;
+}
+
+
+.main-content .task:focus {
+	background-color: #f7f7f7;
+}
+
+
+.main-content .task .detail {
+	font-size: 56px;
+	line-height: 77px;
+	float: right;
+	margin-right: 10px;
+	cursor: pointer;
+	
+}
+
+/* 页尾栏 */
+.main-footer {
+	background-color: #f6f6f6;
+	border-top: 1px solid #ddd;
+	/* position: fixed; */
+	/* width: 100%; */
+	height: 50px;
+	margin-left: 180px;
+	
+}
+
+.main-footer .navbar-nav {
+	margin: 0;
+}
