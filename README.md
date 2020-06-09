@@ -1,3 +1,13 @@
+# 由于其程序架构的局限性，导致其开发和维护的困难，所以该项目已停止开发维护。
+
+# 转生项目： [VideoCrawlerEngine（开发中）](https://github.com/ZSAIm/VideoCrawlerEngine) 
+
+******
+# 以下内容可忽视。
+
+******
+******
+
 # 爱奇艺、哔哩哔哩、腾讯视频解析器 (IQIYI-BILIBILI-TENCENT-parser)
 
 	爱奇艺、哔哩哔哩、（腾讯视频）解析下载器。【支持导入会员Cookie下载会员视频】
