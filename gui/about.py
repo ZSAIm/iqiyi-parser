@@ -1,4 +1,4 @@
-
+# -*- coding: UTF-8 -*-
 import wx
 import wx.adv
 
