@@ -4,7 +4,7 @@ bs4==0.0.1
 future==0.17.1
 macholib==1.11
 pefile==2019.4.18
-Pillow==6.0.0
+Pillow==9.0.0
 PyInstaller==3.4
 pyperclip==1.7.0
 pyrasite==2.0
